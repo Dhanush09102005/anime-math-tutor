@@ -1,0 +1,23 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.env
+*.egg-info/
+dist/
+build/
+
+# Node / Frontend
+anime-tutor/node_modules/
+anime-tutor/dist/
+anime-tutor/.env
+anime-tutor/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
