@@ -29,8 +29,11 @@ Anime_school/
 ├── backend/
 │   ├── main.py                   FastAPI app, CORS, router mounts
 │   ├── schemas.py                Pydantic request/response models
-│   ├── state.py                  In-memory session store + constants
+│   ├── state.py                  Session cache + constants
 │   ├── requirements.txt
+│   ├── tutor.db                  SQLite database (gitignored)
+│   ├── db/
+│   │   └── database.py           Schema, init, session + attempt CRUD
 │   ├── math_engine/
 │   │   ├── generate.py           Problem generation (SymPy)
 │   │   ├── verify.py             Answer parsing + mistake classification
@@ -113,7 +116,7 @@ Problems scale from difficulty 1–10 based on streak:
 
 ### Event system
 
-Every submit maps to one of 6 event categories:
+Every submit maps to one of 7 event categories:
 
 | Event | Condition |
 |---|---|
@@ -123,6 +126,7 @@ Every submit maps to one of 6 event categories:
 | `repeated_mistake` | Wrong, same mistake as last time |
 | `give_up_request` | User asked for a hint |
 | `topic_mastered` | Correct at difficulty ≥ 8 (once per session) |
+| `not_serious` | Non-numeric input or expression used instead of a plain number |
 
 The event category drives both the LLM prompt and the character's mood image simultaneously — they can never disagree.
 
@@ -148,16 +152,24 @@ topic_mastered.png
 
 ---
 
+## Version history
+
+| Version | What landed |
+|---|---|
+| v0.1.0 | math_engine core (generate / verify / difficulty) + React + Vite frontend scaffold |
+| v0.1.1 | Kakashi persona JSON + prompt_builder complete, pipeline tested in isolation |
+| v0.2.0 | Full LLM integration — end-to-end pipeline proven live via REPL (generate → verify → classify → prompt → real Llama 3.3 70B call → in-character response) |
+| v0.3.0 | FastAPI layer: `/session`, `/problem`, `/submit` wired over HTTP; router pattern (main.py, schemas.py, state.py, routes/); tested via Swagger |
+| v0.4.0 | React frontend: CharacterSelect, CharacterPanel, SessionHeader, ProblemCard, ReactionPanel, mood-image system tied to event categories, api/client.js |
+| v1.0.0 | SQLite persistence (backend/db/), `not_serious` event, verify.py fixes, README — completes the vertical slice |
+| v1.0.1 | Hotfix: `-05` now correctly accepted as `-5` (leading-zero normalisation before SymPy parse) |
+
+---
+
 ## Roadmap
 
-### Current (v0.x) — Kakashi vertical slice
-- [x] Full problem → answer → LLM reaction loop
-- [x] Adaptive difficulty
-- [x] Mood-driven character art
-- [ ] SQLite persistence (session history survives server restart)
-
-### v1.0 — Reliable learning tool
-- Improved Kakashi response quality
+### v1.x — Improving Kakashi + expanding content
+- Improved Kakashi LLM response quality
 - More math topics: calculus, trigonometry, linear algebra, probability & statistics
 - Topic/subtopic selection + mixed question bank
 - Sukuna, Makima, Mahito added to same depth as Kakashi

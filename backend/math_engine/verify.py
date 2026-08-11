@@ -100,6 +100,12 @@ def _parse_user_answer(raw: str):
     # Determine if this looks like a plain number literal vs an expression
     is_plain_number = _looks_like_plain_number(cleaned)
 
+    # Normalise plain numbers before parsing — strip leading zeros from the
+    # numeric part so "-05" → "-5" and "009" → "9".
+    # SymPy's parser can treat zero-padded literals as octal and reject them.
+    if is_plain_number:
+        cleaned = _strip_leading_zeros(cleaned)
+
     try:
         expr = parse_expr(cleaned, transformations=TRANSFORMATIONS)
         simplified = sp.nsimplify(expr, rational=True)
@@ -112,6 +118,28 @@ def _parse_user_answer(raw: str):
 
     except Exception:
         return None, False
+
+
+def _strip_leading_zeros(s: str) -> str:
+    """
+    Strips leading zeros from a plain number string, preserving sign and decimals.
+    "-05"  → "-5"
+    "009"  → "9"
+    "00.5" → "0.5"   (keeps one zero before the dot)
+    "-007" → "-7"
+    "0"    → "0"
+    """
+    negative = s.startswith("-")
+    magnitude = s.lstrip("-")
+
+    if "." in magnitude:
+        integer_part, decimal_part = magnitude.split(".", 1)
+        integer_part = integer_part.lstrip("0") or "0"
+        magnitude = f"{integer_part}.{decimal_part}"
+    else:
+        magnitude = magnitude.lstrip("0") or "0"
+
+    return f"-{magnitude}" if negative else magnitude
 
 
 def _looks_like_plain_number(s: str) -> bool:
