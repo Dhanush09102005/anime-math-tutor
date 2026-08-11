@@ -21,11 +21,16 @@ def classify_event(verification_result: dict, streak: int, is_repeated_mistake: 
     """
     Decides which reaction_bank category this moment falls into.
     This is the single source of truth for event classification —
-    both the text reaction and the mood/image system (later) should
+    both the text reaction and the mood/image system should
     call this same function so they never disagree with each other.
+
+    not_serious takes priority over everything else except give_up —
+    we don't want a garbage input accidentally triggering topic_mastered etc.
     """
     if is_give_up:
         return "give_up_request"
+    if verification_result.get("not_serious"):
+        return "not_serious"
     if is_topic_mastered:
         return "topic_mastered"
     if not verification_result["correct"]:
@@ -69,6 +74,19 @@ Here's an example of the kind of line that fits this moment (don't repeat it ver
 "{example_line}"
 """
 
+    not_serious = verification_result.get("not_serious", False)
+    raw_input_note = ""
+    if not_serious:
+        raw_input = verification_result.get("parsed_answer")
+        if raw_input is None:
+            raw_input_note = "The student typed something unparseable — not a real number answer at all."
+        else:
+            raw_input_note = (
+                f"The student typed an expression ('{raw_input}') instead of a plain number. "
+                f"The value {'happens to be correct' if verification_result['correct'] else 'is also wrong'}. "
+                "Either way, they're being cheeky instead of giving a direct answer."
+            )
+
     situation = f"""
 CURRENT SITUATION (already verified — do not recompute or contradict this):
 Problem: {problem['prompt_text']}
@@ -77,10 +95,13 @@ Student's answer: {verification_result.get('parsed_answer')}
 Was the student correct: {verification_result['correct']}
 Current streak: {streak}
 Event type: {event_category}
+{raw_input_note}
 
-Respond in character as {persona['name']}, reacting to this specific result. If the student
-was wrong, briefly explain the correct approach without giving away future problems. Keep it
-to 2-4 sentences — this is a quick in-the-moment reaction, not a lecture.
+Respond in character as {persona['name']}, reacting to this specific result. If the event
+type is 'not_serious', react with bored dismissal — tell them to stop messing around and
+give a proper answer. Do not treat it as a correct or incorrect answer, just call them out
+in character. Otherwise, if the student was wrong, briefly explain the correct approach
+without giving away future problems. Keep it to 2-4 sentences — quick reaction, not a lecture.
 """
 
     return system_context + situation

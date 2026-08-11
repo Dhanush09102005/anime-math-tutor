@@ -2,9 +2,9 @@ DEFAULT_TOPIC = "linear_equations"
 DEFAULT_DIFFICULTY = 1
 MASTERY_DIFFICULTY_THRESHOLD = 8
 
-# session_id -> session state dict. In-memory only — wiped on server restart.
-# Lives here (not inside a route file) so /session, /problem, and /submit
-# can all read/write the same dict instead of each having their own copy.
+# In-memory session cache — primary store for active request handling.
+# On server restart, sessions are reloaded from SQLite on first access.
+# current_problem is never persisted — it's ephemeral within one problem cycle.
 SESSIONS: dict = {}
 
 

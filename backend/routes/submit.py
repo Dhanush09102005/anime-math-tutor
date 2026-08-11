@@ -6,6 +6,7 @@ from personas.prompt_builder import load_persona, classify_event, build_prompt
 from llm_client.hf_client import get_reaction
 from routes.session import get_session
 import state
+import db.database as db
 from schemas import SubmitRequest, SubmitResponse
 
 router = APIRouter()
@@ -25,21 +26,28 @@ def submit_answer(req: SubmitRequest):
     old_streak = s["streak"]
 
     if req.give_up:
-        verification_result = {"correct": False, "parsed_answer": None, "mistake_type": None}
+        verification_result = {"correct": False, "parsed_answer": None, "mistake_type": None, "not_serious": False}
         is_repeated_mistake = False
         new_streak = 0
     else:
         verification_result = verify_answer(problem, req.answer or "")
+        not_serious = verification_result.get("not_serious", False)
         mistake_type = verification_result["mistake_type"]
         is_repeated_mistake = (
-            not verification_result["correct"]
+            not not_serious
+            and not verification_result["correct"]
             and mistake_type is not None
             and mistake_type == s["last_mistake_type"]
         )
-        new_streak = old_streak + 1 if verification_result["correct"] else 0
+        # not_serious answers don't count toward or against streak
+        if not_serious:
+            new_streak = old_streak
+        else:
+            new_streak = old_streak + 1 if verification_result["correct"] else 0
 
     is_topic_mastered = (
-        verification_result["correct"]
+        not verification_result.get("not_serious", False)
+        and verification_result["correct"]
         and problem["difficulty"] >= state.MASTERY_DIFFICULTY_THRESHOLD
         and not s["mastery_announced"]
     )
@@ -61,16 +69,40 @@ def submit_answer(req: SubmitRequest):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
 
+    not_serious = verification_result.get("not_serious", False)
+
     new_difficulty = next_difficulty(
         current_difficulty=problem["difficulty"],
         streak=new_streak,
         was_correct=verification_result["correct"],
-    )
+    ) if not not_serious else problem["difficulty"]
 
     s["streak"] = new_streak
     s["difficulty"] = new_difficulty
-    s["last_mistake_type"] = None if verification_result["correct"] else verification_result["mistake_type"]
-    s["current_problem"] = None
+    # not_serious: leave last_mistake_type and current_problem unchanged —
+    # the problem stays active so they answer it properly
+    if not not_serious:
+        s["last_mistake_type"] = None if verification_result["correct"] else verification_result["mistake_type"]
+        s["current_problem"] = None
+        # Persist updated session state to DB
+        db.update_session(
+            session_id=req.session_id,
+            difficulty=new_difficulty,
+            streak=new_streak,
+            mastery_announced=s["mastery_announced"],
+            last_mistake_type=s["last_mistake_type"],
+            topic=s["topic"],
+        )
+        # Log this attempt (skip not_serious — they're not real answers)
+        db.log_attempt(
+            session_id=req.session_id,
+            problem_id=problem["id"],
+            topic=problem["topic"],
+            difficulty=problem["difficulty"],
+            correct=verification_result["correct"],
+            mistake_type=verification_result["mistake_type"],
+            event_category=event_category,
+        )
 
     return SubmitResponse(
         correct=verification_result["correct"],

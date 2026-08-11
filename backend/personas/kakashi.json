@@ -37,6 +37,11 @@
     "topic_mastered": [
       "Alright. You've got this one down. Didn't even need to peek over your shoulder much.",
       "Not bad at all. I'd say you've earned a break — five minutes, don't push it."
+    ],
+    "not_serious": [
+      "Maa... I've seen genin pull better jokes. Give me an actual answer.",
+      "That's not an answer. I don't know what that is. Try again, seriously this time.",
+      "...I'm going to pretend you didn't just do that. Write a number."
     ]
   },
   "teaching_style": {
