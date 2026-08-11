@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from math_engine.verify import verify_answer
 from math_engine.difficulty import next_difficulty
 from personas.prompt_builder import load_persona, classify_event, build_prompt
-from llm_client.hf_client import get_kakashi_reaction
+from llm_client.hf_client import get_reaction
 from routes.session import get_session
 import state
 from schemas import SubmitRequest, SubmitResponse
@@ -21,9 +21,7 @@ def submit_answer(req: SubmitRequest):
     if problem["id"] != req.problem_id:
         raise HTTPException(status_code=409, detail="problem_id doesn't match the session's active problem (stale submit).")
 
-    # ...next chunk goes here
-
-    persona = load_persona("kakashi")
+    persona = load_persona(s["persona_id"])
     old_streak = s["streak"]
 
     if req.give_up:
@@ -59,7 +57,7 @@ def submit_answer(req: SubmitRequest):
     prompt = build_prompt(persona, problem, verification_result, event_category, new_streak)
 
     try:
-        kakashi_reaction = get_kakashi_reaction(prompt)
+        reaction = get_reaction(prompt)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
 
@@ -79,7 +77,7 @@ def submit_answer(req: SubmitRequest):
         mistake_type=verification_result["mistake_type"],
         correct_answer=str(problem["canonical_answer"]),
         event_category=event_category,
-        kakashi_reaction=kakashi_reaction,
+        reaction=reaction,
         streak=new_streak,
         difficulty=new_difficulty,
     )

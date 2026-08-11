@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, HTTPException
 
 import state
-from schemas import CreateSessionResponse
+from schemas import CreateSessionRequest, CreateSessionResponse
 
 router = APIRouter()
 
@@ -16,8 +16,13 @@ def get_session(session_id: str) -> dict:
 
 
 @router.post("/session", response_model=CreateSessionResponse)
-def create_session():
+def create_session(req: CreateSessionRequest):
     session_id = str(uuid.uuid4())
-    state.SESSIONS[session_id] = state.new_session_state()
+    state.SESSIONS[session_id] = state.new_session_state(req.persona_id)
     s = state.SESSIONS[session_id]
-    return CreateSessionResponse(session_id=session_id, topic=s["topic"], difficulty=s["difficulty"])
+    return CreateSessionResponse(
+        session_id=session_id,
+        persona_id=s["persona_id"],
+        topic=s["topic"],
+        difficulty=s["difficulty"],
+    )

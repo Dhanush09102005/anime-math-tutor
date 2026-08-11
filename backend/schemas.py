@@ -2,8 +2,13 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class CreateSessionRequest(BaseModel):
+    persona_id: str
+
+
 class CreateSessionResponse(BaseModel):
     session_id: str
+    persona_id: str
     topic: str
     difficulty: int
 
@@ -32,6 +37,6 @@ class SubmitResponse(BaseModel):
     mistake_type: Optional[str]
     correct_answer: str
     event_category: str
-    kakashi_reaction: str
+    reaction: str
     streak: int
     difficulty: int

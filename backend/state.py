@@ -8,8 +8,9 @@ MASTERY_DIFFICULTY_THRESHOLD = 8
 SESSIONS: dict = {}
 
 
-def new_session_state() -> dict:
+def new_session_state(persona_id: str) -> dict:
     return {
+        "persona_id": persona_id,
         "topic": DEFAULT_TOPIC,
         "difficulty": DEFAULT_DIFFICULTY,
         "streak": 0,

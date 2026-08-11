@@ -12,7 +12,7 @@ client = OpenAI(
 MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct:groq"
 
 
-def get_kakashi_reaction(prompt: str) -> str:
+def get_reaction(prompt: str) -> str:
     """
     Sends the built prompt to Llama 3.3 70B (via Groq, routed through HF)
     and returns the generated in-character response as plain text.
