@@ -207,19 +207,25 @@ topic_mastered.png
 
 ## Roadmap
 
-### v2.0 — Multi-user platform
+### v1.x — Improving Kakashi + expanding content
+- Improved Kakashi LLM response quality → v1.1.0
+- More math topics: 16 topics landed → v1.2.0
+- Topic/subtopic selection + mixed question bank → v1.2.0
+- Sukuna, Makima, Mahito added to same depth as Kakashi
+- Per-character theming and frontend improvements
+- (small, still open) not_serious UI fix
+
+### v2.x — Multi-user platform
 - Authentication, user accounts
-- Per-user progress, analytics, history (real mastery model belongs here)
+- Per-user progress, analytics, history
 - Full database, multiple pages, proper routing
 
-### v3.0 — Content depth + immersive experience *(long-term)*
-- **Replace procedural generation with LLM-generated problems, SymPy-verified.** The LLM generates a problem in a structured, parseable form; SymPy independently solves it and checks the LLM's claimed answer before the problem ever reaches a student — mismatches are silently discarded and regenerated. This keeps SymPy as the sole source of correctness (the LLM still never grades or asserts an answer is right) while allowing genuinely JEE-Advanced-depth problems, which pure procedural generation (v1.2.0's approach) can't reach without the generator code becoming unmanageably large per topic.
-- Real JEE Mains + Advanced question bank
-- `vector_or_matrix` and `expression` answer-shape verification (equation of a line/circle/conic, matrix results, indefinite integrals, differential equations)
+### v3.x — Immersive experience *(long-term)*
 - Animated characters, voice acting trained on source material
 - Dialogue-box UI, doubt-solving chat, session summaries
-- Sukuna, Makima, Mahito added to same depth as Kakashi
-- Note: the content-depth rework (LLM-generate + SymPy-verify, question bank) and the presentation work (animation, voice, dialogue UI) are separable initiatives that currently share a version number — worth splitting into distinct pushes when this milestone is actually reached.
+- JEE Mains + Advanced question bank replacing procedural generation
+- **Replace procedural generation with LLM-generated problems, SymPy-verified.** The LLM generates a problem in a structured, parseable form; SymPy independently solves it and checks the LLM's claimed answer before the problem ever reaches a student — mismatches are silently discarded and regenerated. SymPy remains the sole source of correctness — the LLM still never grades or asserts an answer is right.
+- `vector_or_matrix` and `expression` answer-shape verification (equation of a line/circle/conic, matrix results, indefinite integrals, differential equations)
 
 ---
 
