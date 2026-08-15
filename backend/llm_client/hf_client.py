@@ -2,7 +2,7 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()  # reads backend/.env
+load_dotenv()
 
 client = OpenAI(
     base_url="https://router.huggingface.co/v1",
@@ -12,18 +12,20 @@ client = OpenAI(
 MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct:groq"
 
 
-def get_reaction(prompt: str) -> str:
+def get_reaction(system_prompt: str, history: list[dict]) -> str:
     """
-    Sends the built prompt to Llama 3.3 70B (via Groq, routed through HF)
-    and returns the generated in-character response as plain text.
+    Calls Llama 3.3 70B with a system prompt and the full conversation history.
+
+    history is a list of {"role": "assistant"|"user", "content": str} dicts.
+    The caller appends the new user turn before calling this function.
     """
+    messages = [{"role": "system", "content": system_prompt}] + history
+
     completion = client.chat.completions.create(
         model=MODEL_ID,
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
+        messages=messages,
         max_tokens=200,
-        temperature=0.8,
+        temperature=0.85,
     )
 
     return completion.choices[0].message.content.strip()

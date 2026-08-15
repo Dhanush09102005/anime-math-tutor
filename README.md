@@ -116,17 +116,21 @@ Problems scale from difficulty 1–10 based on streak:
 
 ### Event system
 
-Every submit maps to one of 7 event categories:
+Every submit maps to one of 10 event categories:
 
 | Event | Condition |
 |---|---|
-| `correct_first_try` | Correct, streak < 3 |
+| `correct_first_try` | Correct, streak < 3, no milestone |
 | `correct_streak` | Correct, streak ≥ 3 |
-| `incorrect` | Wrong, new mistake type |
-| `repeated_mistake` | Wrong, same mistake as last time |
+| `difficulty_milestone` | Correct answer pushed difficulty to 3, 5, 7, or 9 |
+| `comeback` | First correct answer after a string of wrong answers |
+| `incorrect` | Wrong answer, first time this mistake type |
+| `repeated_mistake` | Wrong answer, same mistake type as last time |
+| `frustration_warning` | 2–3 consecutive wrong answers |
+| `full_frustration` | 4+ consecutive wrong answers |
 | `give_up_request` | User asked for a hint |
 | `topic_mastered` | Correct at difficulty ≥ 8 (once per session) |
-| `not_serious` | Non-numeric input or expression used instead of a plain number |
+| `not_serious` | Non-numeric or expression input |
 
 The event category drives both the LLM prompt and the character's mood image simultaneously — they can never disagree.
 

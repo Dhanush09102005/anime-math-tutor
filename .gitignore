@@ -19,6 +19,9 @@ anime-tutor/.env.local
 .DS_Store
 Thumbs.db
 
+# AI handoff doc — local only
+CONTEXT.md
+
 # IDE
 .vscode/
 .idea/
