@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { createSession, fetchProblem, submitAnswer } from "./api/client";
 import CharacterSelect from "./components/CharacterSelect";
+import TopicSelect from "./components/TopicSelect";
 import CharacterPanel from "./components/CharacterPanel";
 import SessionHeader from "./components/SessionHeader";
 import ProblemCard from "./components/ProblemCard";
 import ReactionPanel from "./components/ReactionPanel";
 
 export default function App() {
-  const [phase, setPhase]         = useState("select"); // "select" | "problem" | "reaction"
+  const [phase, setPhase]         = useState("select"); // "select" | "topic" | "problem" | "reaction"
   const [sessionId, setSessionId] = useState(null);
   const [problem, setProblem]     = useState(null);
   const [result, setResult]       = useState(null);
@@ -21,7 +22,19 @@ export default function App() {
     try {
       const session = await createSession(personaId);
       setSessionId(session.session_id);
-      const prob = await fetchProblem(session.session_id);
+      setPhase("topic");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSelectTopic(topicId) {
+    setLoading(true);
+    setError(null);
+    try {
+      const prob = await fetchProblem(sessionId, topicId);
       setProblem(prob);
       setCurrentMood("default");
       setPhase("problem");
@@ -30,6 +43,12 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleBackToCharacterSelect() {
+    setSessionId(null);
+    setError(null);
+    setPhase("select");
   }
 
   async function handleSubmit(answer) {
@@ -98,6 +117,25 @@ export default function App() {
           </div>
         )}
         <CharacterSelect onSelect={handleSelectCharacter} loading={loading} />
+      </div>
+    );
+  }
+
+  // Topic select — full screen centered, same shell as character select
+  if (phase === "topic") {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-8">
+        {error && (
+          <div className="absolute top-4 px-4 py-2 bg-red-900/50 border border-red-700
+                          rounded text-red-300 text-sm">
+            {error}
+          </div>
+        )}
+        <TopicSelect
+          onSelect={handleSelectTopic}
+          onBack={handleBackToCharacterSelect}
+          loading={loading}
+        />
       </div>
     );
   }

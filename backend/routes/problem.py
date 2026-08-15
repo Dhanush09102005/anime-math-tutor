@@ -32,4 +32,5 @@ def get_problem(req: ProblemRequest):
         topic=problem["topic"],
         difficulty=problem["difficulty"],
         prompt_text=problem["prompt_text"],
+        answer_shape=problem["answer_shape"],
     )

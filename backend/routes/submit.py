@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from math_engine.verify import verify_answer
 from math_engine.difficulty import next_difficulty
-from personas.prompt_builder import load_persona, classify_event, build_system_prompt, build_turn
+from personas.prompt_builder import load_persona, classify_event, build_system_prompt, build_turn, format_answer_for_display
 from llm_client.hf_client import get_reaction
 from routes.session import get_session
 import state
@@ -28,8 +28,8 @@ def submit_answer(req: SubmitRequest):
 
     # ── Verify ────────────────────────────────────────────────────────────────
     if req.give_up:
-        verification_result = {"correct": False, "parsed_answer": None,
-                               "mistake_type": None, "not_serious": False}
+        verification_result = {"correct": False, "parsed_answer": None, "mistake_type": None, "not_serious": False}
+        not_serious = False          # ← new line, that's it
         is_repeated_mistake = False
         new_streak = 0
         new_consecutive_wrong = old_consecutive_wrong + 1
@@ -149,7 +149,7 @@ def submit_answer(req: SubmitRequest):
     return SubmitResponse(
         correct=verification_result["correct"],
         mistake_type=verification_result["mistake_type"],
-        correct_answer=str(problem["canonical_answer"]),
+        correct_answer=format_answer_for_display(problem["canonical_answer"]),
         event_category=event_category,
         reaction=reaction,
         streak=new_streak,

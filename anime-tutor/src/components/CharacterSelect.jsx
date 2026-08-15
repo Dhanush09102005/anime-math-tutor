@@ -69,7 +69,7 @@ export default function CharacterSelect({ onSelect, loading }) {
                   <img
                     src={cardImage}
                     alt={c.name}
-                    className="w-full h-full object-cover object-top"
+                    className="w-full h-full object-contain object-center"
                   />
                 ) : (
                   <span className="text-slate-500 text-xs">

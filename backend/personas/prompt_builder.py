@@ -5,6 +5,28 @@ from pathlib import Path
 PERSONAS_DIR = Path(__file__).parent
 
 
+def format_answer_for_display(value) -> str:
+    """
+    Formats a canonical/parsed answer for display — in API responses and in
+    the LLM prompt. Scalars (single_value) print as-is. Sets/lists/tuples
+    (multi_value) print as a sorted, comma-separated list, so a quadratic's
+    roots read as "2, 3" instead of Python's raw set repr "{2, 99}".
+
+    vector_or_matrix and expression shapes aren't implemented yet
+    (verify.py raises NotImplementedError for them), so this only needs to
+    handle scalar and iterable-of-scalars for now.
+    """
+    if value is None:
+        return "?"
+    if isinstance(value, (set, frozenset, list, tuple)):
+        try:
+            ordered = sorted(value, key=lambda v: float(v))
+        except (TypeError, ValueError):
+            ordered = list(value)
+        return ", ".join(str(v) for v in ordered)
+    return str(value)
+
+
 def load_persona(persona_id: str) -> dict:
     path = PERSONAS_DIR / f"{persona_id}.json"
     if not path.exists():
@@ -97,7 +119,7 @@ def build_turn(persona: dict, problem: dict, verification_result: dict,
             input_note = "The student typed something completely unparseable — not a number at all."
         else:
             input_note = (
-                f"The student typed an expression '{parsed}' instead of a plain number answer. "
+                f"The student typed an expression '{format_answer_for_display(parsed)}' instead of a plain number answer. "
                 f"The value {'happens to equal the answer' if verification_result['correct'] else 'is also wrong'}. "
                 "They are being cheeky."
             )
@@ -114,19 +136,26 @@ Match this energy (don't repeat verbatim): "{example_line}"
     mistake_guidance = ""
     if not verification_result["correct"]:
         mistake_type = verification_result.get("mistake_type", "wrong")
-        student_answer = verification_result.get("parsed_answer")
-        correct_answer = problem["canonical_answer"]
+        student_answer = format_answer_for_display(verification_result.get("parsed_answer"))
+        correct_answer = format_answer_for_display(problem["canonical_answer"])
 
         if mistake_type == "sign_error":
             mistake_guidance = (
-                f"The student got the magnitude right ({abs(student_answer) if student_answer else '?'}) "
-                f"but the sign wrong — they answered {student_answer} instead of {correct_answer}. "
+                f"The student got the magnitude right but the sign wrong — "
+                f"they answered {student_answer} instead of {correct_answer}. "
                 "Address the sign error specifically. Remind them to track which side things move to."
             )
         elif mistake_type == "arithmetic_slip":
             mistake_guidance = (
                 f"The student was close — answered {student_answer}, correct was {correct_answer}. "
                 "Small arithmetic slip at the end. Tell them the method was right, just sloppy execution."
+            )
+        elif mistake_type == "partial":
+            mistake_guidance = (
+                f"The student got PART of it right — answered {student_answer}, "
+                f"but the full correct answer is {correct_answer} (there's more than one valid value here). "
+                "Acknowledge what they got right first, then point out what's missing or extra — "
+                "don't just call it wrong outright, they were partway there."
             )
         else:
             mistake_guidance = (
@@ -156,8 +185,8 @@ Match this energy (don't repeat verbatim): "{example_line}"
 
     return f"""[SITUATION]
 Problem: {problem['prompt_text']}
-Correct answer: {problem['canonical_answer']}
-Student's answer: {verification_result.get('parsed_answer')}
+Correct answer: {format_answer_for_display(problem['canonical_answer'])}
+Student's answer: {format_answer_for_display(verification_result.get('parsed_answer'))}
 Result: {'CORRECT' if verification_result['correct'] else f"WRONG — mistake type: {verification_result.get('mistake_type', 'wrong')}"}
 Current streak: {streak}
 Event: {event_category}
