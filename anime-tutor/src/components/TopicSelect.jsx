@@ -70,7 +70,7 @@ export default function TopicSelect({ onSelect, onBack, loading }) {
           onClick={onBack}
           className="text-slate-500 hover:text-slate-300 text-xs tracking-wide transition-colors"
         >
-          ‹ change sensei
+          ‹ change mode
         </button>
       </div>
 

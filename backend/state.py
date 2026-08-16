@@ -22,4 +22,13 @@ def new_session_state(persona_id: str) -> dict:
         "last_mistake_type": None,
         "mastery_announced": False,
         "conversation_history": [],  # list of {role, content} — never persisted to DB
+
+        # v2.2 chat mode — reuses everything above (topic/difficulty/streak/
+        # current_problem/conversation_history all apply directly to chat too,
+        # since check_answer/get_next_problem tools read and write the same
+        # fields the Q&A /submit and /problem routes already use).
+        # "mode" exists only to prevent a session created for one flow being
+        # driven through the other by mistake — not read by any verification
+        # or generation logic.
+        "mode": "qna",  # "qna" | "chat" — set once, at session creation
     }

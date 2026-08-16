@@ -32,6 +32,9 @@ def get_session(session_id: str) -> dict:
 def create_session(req: CreateSessionRequest):
     session_id = str(uuid.uuid4())
     s = state.new_session_state(req.persona_id)
+    s["mode"] = req.mode
+    if req.topic:
+        s["topic"] = req.topic
     state.SESSIONS[session_id] = s
 
     # Persist to DB
@@ -47,4 +50,5 @@ def create_session(req: CreateSessionRequest):
         persona_id=s["persona_id"],
         topic=s["topic"],
         difficulty=s["difficulty"],
+        mode=s["mode"],
     )

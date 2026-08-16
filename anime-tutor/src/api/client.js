@@ -13,9 +13,11 @@ async function request(path, body) {
   return res.json();
 }
 
-// POST /session — creates a new session for the given persona
-export function createSession(personaId) {
-  return request("/session", { persona_id: personaId });
+// POST /session — creates a new session for the given persona.
+// mode: "qna" (default, existing flow) | "chat" (v2.2 free-form chat mode)
+// topic: only meaningful for chat mode — qna mode still sets its topic later via /problem
+export function createSession(personaId, mode = "qna", topic = null) {
+  return request("/session", { persona_id: personaId, mode, topic });
 }
 
 // POST /problem — fetches the next problem for this session.
@@ -34,4 +36,9 @@ export function submitAnswer(sessionId, problemId, answer, giveUp = false) {
     answer: giveUp ? null : answer,
     give_up: giveUp,
   });
+}
+
+// POST /chat — v2.2 free-form chat mode. Returns { reply, mood, streak, difficulty }.
+export function sendChatMessage(sessionId, message) {
+  return request("/chat", { session_id: sessionId, message });
 }

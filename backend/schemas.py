@@ -21,6 +21,8 @@ class AnswerShape(str, Enum):
 
 class CreateSessionRequest(BaseModel):
     persona_id: str
+    mode: str = "qna"  # "qna" | "chat" — v2.2 chat mode alongside the existing Q&A flow
+    topic: Optional[str] = None  # chat mode needs a topic from the start; qna mode still sets it later via /problem
 
 
 class CreateSessionResponse(BaseModel):
@@ -28,6 +30,7 @@ class CreateSessionResponse(BaseModel):
     persona_id: str
     topic: str
     difficulty: int
+    mode: str
 
 
 class ProblemRequest(BaseModel):
@@ -56,5 +59,17 @@ class SubmitResponse(BaseModel):
     correct_answer: str
     event_category: str
     reaction: str
+    streak: int
+    difficulty: int
+
+
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    mood: str            # coarse mood signal for CharacterPanel — "default" unless a tool call resolved correct/wrong this turn
     streak: int
     difficulty: int

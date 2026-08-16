@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routes import session, problem, submit
+from routes import session, problem, submit, chat
 from db.database import init_db
 
 app = FastAPI(title="Anime Math Tutor API")
@@ -16,6 +16,7 @@ app.add_middleware(
 app.include_router(session.router)
 app.include_router(problem.router)
 app.include_router(submit.router)
+app.include_router(chat.router)
 
 
 @app.on_event("startup")
