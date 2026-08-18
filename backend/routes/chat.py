@@ -37,12 +37,16 @@ def _parse_fallback_tool_calls(content: str):
 
 
 def _strip_fallback_tags(content: str) -> str:
-    """Removes <function=...></function> tags from visible/stored text, leaving Kakashi's actual sentence intact."""
+    """Removes <function=...></function> tags from visible/stored text, leaving the persona's actual sentence intact."""
     return _FALLBACK_FUNCTION_PATTERN.sub("", content).strip()
 
 router = APIRouter()
 
 MAX_TOOL_ITERATIONS = 4  # safety cap — prevents an infinite tool-call loop if the model won't settle on a final reply
+
+# Used only if a persona JSON is somehow missing a fallback_line — should
+# never actually surface in practice once all persona files have one.
+_GENERIC_FALLBACK = "...I lost my train of thought there. Try that again?"
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -71,6 +75,8 @@ def chat(req: ChatRequest):
             assistant_message = get_chat_completion(messages, tools=TOOL_SCHEMAS)
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
+
+        print(f"[DEBUG] content={assistant_message.content!r} tool_calls={getattr(assistant_message, 'tool_calls', None)}")
 
         tool_calls = getattr(assistant_message, "tool_calls", None)
 
@@ -107,14 +113,42 @@ def chat(req: ChatRequest):
             if tc.function.name == "check_answer" and not result.get("not_serious") and "error" not in result:
                 mood = "correct_first_try" if result.get("correct") else "incorrect"
 
+            # Add a human-readable hint after check_answer so the model
+            # has an explicit nudge to react rather than going silent.
+            tool_content = json.dumps(result)
+            if tc.function.name == "check_answer" and "error" not in result:
+                verdict = "CORRECT" if result.get("correct") else f"WRONG (correct answer: {result.get('correct_answer')})"
+                tool_content = json.dumps({**result, "_hint": f"The student's answer was {verdict}. React in character now."})
+
             messages.append({
                 "role": "tool",
                 "tool_call_id": tc.id,
-                "content": json.dumps(result),
+                "content": tool_content,
             })
 
-    if final_reply is None:
-        final_reply = "...maa, give me a second, I lost my train of thought there. Try that again?"
+    # If the loop exhausted all MAX_TOOL_ITERATIONS without the model ever
+    # settling on a plain-text reply (it kept calling tools every turn),
+    # force one last call with tools withheld — this compels a plain-text
+    # response instead of another tool call, since there's nothing left to
+    # call. This is the most likely fix for "every single message hits the
+    # generic fallback" as opposed to occasional empty replies.
+    if not final_reply:
+        try:
+            forced_message = get_chat_completion(messages, tools=None)
+            print(f"[DEBUG] forced final call content={forced_message.content!r}")
+            final_reply = (forced_message.content or "").strip()
+        except Exception as e:
+            print(f"[DEBUG] forced final call failed: {e}")
+
+    # `not final_reply` (not `is None`) — some models (confirmed with Qwen,
+    # after the Groq llama-3.3-70b-versatile deprecation forced a model
+    # swap) return an empty string "" instead of None when they have
+    # nothing to say. "" is falsy but not None, so the old `is None` check
+    # let it silently through as an empty chat bubble instead of triggering
+    # this fallback. `not final_reply` catches None, "", and whitespace-only
+    # strings alike.
+    if not final_reply:
+        final_reply = persona.get("fallback_line", _GENERIC_FALLBACK)
 
     # Persist only the real conversation turn — user message + final reply.
     history.append({"role": "assistant", "content": final_reply})

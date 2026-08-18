@@ -1,6 +1,6 @@
 import { characterCards } from "../assets/characters/index.js";
 
-const CHARACTERS = [
+export const CHARACTERS = [
   {
     id:      "kakashi",
     name:    "Kakashi Hatake",
@@ -13,7 +13,7 @@ const CHARACTERS = [
     name:    "Sukuna",
     title:   "King of Curses",
     flavor:  "Contemptuous, imperious — respect is earned",
-    active:  false,
+    active:  true,
   },
   {
     id:      "makima",

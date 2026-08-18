@@ -50,9 +50,9 @@ def classify_event(verification_result: dict, streak: int, consecutive_wrong: in
         return "topic_mastered"
 
     if not verification_result["correct"]:
-        if consecutive_wrong >= 4:
+        if consecutive_wrong >= 7:
             return "full_frustration"
-        if consecutive_wrong >= 2:
+        if consecutive_wrong >= 5:
             return "frustration_warning"
         if is_repeated_mistake:
             return "repeated_mistake"

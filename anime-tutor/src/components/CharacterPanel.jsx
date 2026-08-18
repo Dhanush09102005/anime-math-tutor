@@ -1,15 +1,26 @@
 import { kakashiMoods } from "../assets/kakashi/index.js";
+import { sukunaMoods } from "../assets/sukuna/index.js";
+// import { makimaMoods } from "../assets/makima/index.js";
+// import { hisokaMoods } from "../assets/hisoka/index.js";
 
-export default function CharacterPanel({ mood = "default" }) {
+const MOOD_REGISTRIES = {
+  kakashi: kakashiMoods,
+  sukuna:  sukunaMoods,
+  // makima:  makimaMoods,
+  // hisoka:  hisokaMoods,
+};
+
+export default function CharacterPanel({ personaId = "kakashi", mood = "default" }) {
+  const moods = MOOD_REGISTRIES[personaId] ?? kakashiMoods;
   // Use the mood image if it exists, fall back to default, fall back to null
-  const image = kakashiMoods[mood] ?? kakashiMoods["default"] ?? null;
+  const image = moods[mood] ?? moods["default"] ?? null;
 
   return (
     <div className="relative w-1/2 h-screen bg-slate-900 shrink-0 overflow-hidden">
       {image ? (
         <img
           src={image}
-          alt={`Kakashi — ${mood}`}
+          alt={`${personaId} — ${mood}`}
           className="w-full h-full object-cover object-top"
         />
       ) : (
@@ -18,7 +29,7 @@ export default function CharacterPanel({ mood = "default" }) {
           <div className="text-slate-600 text-6xl">🥷</div>
           <div className="text-slate-600 text-xs text-center px-8 leading-relaxed">
             Drop mood images in<br />
-            <span className="font-mono text-slate-500">src/assets/kakashi/</span>
+            <span className="font-mono text-slate-500">src/assets/{personaId}/</span>
           </div>
         </div>
       )}

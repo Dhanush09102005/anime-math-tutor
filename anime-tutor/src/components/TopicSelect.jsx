@@ -29,7 +29,7 @@ const TOPIC_CATEGORIES = [
   {
     label: "Linear Algebra",
     topics: [
-      { id: "linear_algebra", name: "Linear Algebra", active: true },
+      { id: "linear_algebra", name: "Eigenvalues", active: true },
       { id: "matrices_determinants", name: "Matrices & Determinants", active: true },
     ],
   },

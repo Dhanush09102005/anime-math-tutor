@@ -227,7 +227,7 @@ export default function App() {
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
 
       {/* Left half — character image, mood-driven, shared by both modes */}
-      <CharacterPanel mood={currentMood} />
+      <CharacterPanel personaId={selectedPersona} mood={currentMood} />
 
       {/* Right half — header + problem/reaction OR chat */}
       <div className={`flex flex-col flex-1 ${isChat ? "overflow-hidden" : "overflow-y-auto"}`}>
@@ -241,6 +241,7 @@ export default function App() {
 
         <div className={`flex flex-col flex-1 gap-4 px-6 py-6 ${isChat ? "min-h-0" : ""}`}>
           <SessionHeader
+            personaId={selectedPersona}
             streak={isChat ? chatStreak : (result?.streak ?? 0)}
             difficulty={isChat ? chatDifficulty : (problem?.difficulty ?? 1)}
             onQuit={handleQuit}

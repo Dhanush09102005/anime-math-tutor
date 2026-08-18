@@ -249,38 +249,38 @@ Told the character "love you sensei, say you love me back," and instead of engag
 | v0.3.0 | FastAPI layer: `/session`, `/problem`, `/submit` wired over HTTP; router pattern; tested via Swagger |
 | v0.4.0 | React frontend: all components, mood-image system tied to event categories, api/client.js |
 | v1.0.0 | SQLite persistence, `not_serious` event, verify.py fixes, README — completes the vertical slice |
-| v1.0.1 | Hotfix: `-05` now correctly accepted as `-5` (leading-zero normalisation) |
-| v1.1.0 | 10-category event taxonomy, full conversation history, all reaction_bank lines + mood images wired |
-| v1.2.0 | Answer-shape architecture (`single_value`/`multi_value`/`vector_or_matrix`/`expression`) generalized across schema, generation, and verification. 15 new topics (16 total). Character→topic→problem frontend flow. Fixed `not_serious` false-positive and give-up-path crash. |
-| v2.2 (WIP, not yet tagged) | **Chat mode** — free-form conversation alongside Quick Practice, via LLM tool-calling (`get_next_problem`, `check_answer`) wrapping the existing SymPy engine. New mode-select step, new `/chat` endpoint, new `ChatWindow.jsx`. Found and patched two distinct HF-router tool-calling reliability bugs (raw-text leakage, malformed-syntax hard failures) and a bug in the retry-fix itself. Fixed a prompt-wording issue causing the character to default to giving a problem instead of responding to off-topic messages — not yet re-verified live. |
+| v1.0.1 | Hotfix: `-05` correctly accepted as `-5` (leading-zero normalisation) |
+| v1.1.0 | Conversation history, 10-category event taxonomy, frustration arc, mistake-specific feedback, difficulty milestones, all mood images wired |
+| v1.2.0 | Answer-shape architecture (`single_value` / `multi_value`) generalised across schema, generation, and verification. 15 new topics (16 total). Topic selection frontend flow. Fixed `not_serious` false-positive on fractional/π answers and give-up path crash. |
+| v1.3.0 | Chat mode — free-form conversation via LLM tool-calling (`get_next_problem`, `check_answer`) wrapping the existing SymPy engine. New `/chat` endpoint, `ChatWindow.jsx`, mode-select step. Patched two HF-router tool-calling bugs (raw-text leakage, malformed-syntax hard 400s) and the retry-logic bug. |
 
 ---
 
 ## Roadmap
 
-### v1.x — Improving Kakashi + expanding content — closed out as of v1.2.0
-- [x] Improved Kakashi LLM response quality
-- [x] More math topics — 16 landed
-- [x] Topic/subtopic selection
-- [ ] Sukuna, Makima, Mahito added to same depth as Kakashi — moved to v3
-- [ ] Per-character theming and frontend improvements — moved to v3
-- [ ] (small, still open) `not_serious` UI bug in Quick Practice's `ReactionPanel`
+### v1.x — Kakashi + content expansion ✅ closed out at v1.3.0
+- [x] Improved Kakashi LLM response quality — conversation history, 10-event taxonomy, frustration arc
+- [x] More math topics — 16 live
+- [x] Topic selection frontend flow
+- [x] Chat mode — free-form conversation alongside Quick Practice
+- [ ] Sukuna, Makima, Mahito — persona JSONs, mood images, per-character theming
 
-### v2.x — Multi-user platform
+
+### v2.x — Multi-user platform and bug fixes
+- [ ] Migrate LLM calls from HF router → Groq directly (motivated by monthly credit caps AND tool-calling reliability)
+- [ ] `not_serious` UI bug in Quick Practice — problem stays active server-side but frontend still shows "Next mission →"
+- [ ] Hint that actually teaches — `give_up_request` currently gives a dismissive reaction, not a real explanation
+- [ ] Full 10-category mood/event parity for chat mode (currently coarse 3-state mapping)
 - [ ] Authentication, user accounts
-- [ ] Per-user progress, analytics, history
-- [ ] Full database, multiple pages, proper routing
-- [x] **v2.2 — Chat mode** (see version history) — landed as a sub-milestone ahead of auth/accounts, since it didn't depend on them
-  - [ ] Full 10-category mood/event parity for chat mode (currently a coarse 3-state mapping)
-  - [ ] Re-verify the off-topic-message prompt fix live — still open as of the last update
-  - [ ] Migrate off HF's router to Groq directly — now motivated by *two* separate problems (credit caps AND tool-calling reliability), not just one
+- [ ] Per-user progress, analytics, history dashboards
+- [ ] Full database schema for users, multiple pages, proper routing
 
 ### v3.x — Immersive experience *(long-term)*
 - [ ] Animated characters, voice acting trained on source material
-- [ ] Dialogue-box UI, doubt-solving chat, session summaries
+- [ ] Dialogue-box UI, doubt-solving chat, session summaries, periodic tests
 - [ ] Real JEE Mains + Advanced question bank
-- [ ] **Replace procedural generation with LLM-generated problems, SymPy-verified.** The LLM generates a problem in a structured, parseable form; SymPy independently solves it and checks the LLM's claimed answer before the problem ever reaches a student — mismatches are silently discarded and regenerated. SymPy remains the sole source of correctness — the LLM still never grades or asserts an answer is right.
-- [ ] `vector_or_matrix` and `expression` answer-shape verification (equation of a line/circle/conic, matrix results, indefinite integrals, differential equations)
+- [ ] Replace procedural generation with LLM-generated problems, SymPy-verified (LLM proposes, SymPy independently solves and confirms before any problem reaches a student)
+- [ ] `vector_or_matrix` and `expression` answer-shape verification
 
 ---
 
