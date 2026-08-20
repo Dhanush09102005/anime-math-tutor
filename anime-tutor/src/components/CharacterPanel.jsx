@@ -1,13 +1,13 @@
 import { kakashiMoods } from "../assets/kakashi/index.js";
 import { sukunaMoods } from "../assets/sukuna/index.js";
-// import { makimaMoods } from "../assets/makima/index.js";
-// import { hisokaMoods } from "../assets/hisoka/index.js";
+import { makimaMoods } from "../assets/makima/index.js";
+import { gokuMoods } from "../assets/goku/index.js";
 
 const MOOD_REGISTRIES = {
   kakashi: kakashiMoods,
   sukuna:  sukunaMoods,
-  // makima:  makimaMoods,
-  // hisoka:  hisokaMoods,
+  makima:  makimaMoods,
+  goku:  gokuMoods,
 };
 
 export default function CharacterPanel({ personaId = "kakashi", mood = "default" }) {

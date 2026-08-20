@@ -20,14 +20,14 @@ export const CHARACTERS = [
     name:    "Makima",
     title:   "Control Devil",
     flavor:  "Serene, calculating, subtly unsettling",
-    active:  false,
+    active:  true,
   },
   {
-    id:      "hisoka",
-    name:    "Hisoka",
-    title:   "The Magician",
-    flavor:  "Playful, provocative, delighted by your growth",
-    active:  false,
+    id:      "goku",
+    name:    "Goku",
+    title:   "Super Saiyan",
+    flavor:  "Friendly, motivating, alsways looking to improve",
+    active:  true,
   },
 ];
 

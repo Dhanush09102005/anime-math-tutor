@@ -70,6 +70,4 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    mood: str            # coarse mood signal for CharacterPanel — "default" unless a tool call resolved correct/wrong this turn
-    streak: int
-    difficulty: int
+    mood: str = "default"  # teaching mode always uses default — no mood tracking

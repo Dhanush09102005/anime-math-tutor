@@ -38,7 +38,21 @@ export function submitAnswer(sessionId, problemId, answer, giveUp = false) {
   });
 }
 
-// POST /chat — v2.2 free-form chat mode. Returns { reply, mood, streak, difficulty }.
-export function sendChatMessage(sessionId, message) {
-  return request("/chat", { session_id: sessionId, message });
+// POST /chat — v2.0.0 teaching mode. Accepts text + optional file (image/PDF).
+export async function sendChatMessage(sessionId, message, file = null) {
+  const form = new FormData();
+  form.append("session_id", sessionId);
+  form.append("message", message || "");
+  if (file) form.append("file", file);
+
+  const res = await fetch(`${BASE_URL}/chat`, {
+    method: "POST",
+    body: form,
+    // No Content-Type header — browser sets multipart boundary automatically
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed: ${res.status}`);
+  }
+  return res.json();
 }

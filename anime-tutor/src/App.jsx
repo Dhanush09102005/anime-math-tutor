@@ -131,12 +131,14 @@ export default function App() {
   }
 
   // ── chat mode handler — new ─────────────────────────────────────────────────
-  async function handleSendChatMessage(text) {
-    setChatMessages((prev) => [...prev, { role: "user", content: text }]);
+  async function handleSendChatMessage(text, file = null) {
+    const displayContent = text || "";
+    const fileName = file?.name ?? null;
+    setChatMessages((prev) => [...prev, { role: "user", content: displayContent, fileName }]);
     setLoading(true);
     setError(null);
     try {
-      const res = await sendChatMessage(sessionId, text);
+      const res = await sendChatMessage(sessionId, text, file);
       setChatMessages((prev) => [...prev, { role: "assistant", content: res.reply }]);
       setCurrentMood(res.mood ?? "default");
       setChatStreak(res.streak ?? 0);
