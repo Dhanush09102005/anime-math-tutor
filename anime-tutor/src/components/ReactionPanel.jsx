@@ -4,7 +4,6 @@ function useTypewriter(text, speed = 18) {
   const [displayed, setDisplayed] = useState("");
 
   useEffect(() => {
-    setDisplayed("");
     if (!text) return;
     let i = 0;
     const interval = setInterval(() => {
@@ -18,8 +17,18 @@ function useTypewriter(text, speed = 18) {
   return displayed;
 }
 
+function TypewriterText({ text }) {
+  const displayed = useTypewriter(text);
+
+  return (
+    <>
+      {displayed}
+      <span className="animate-pulse">▍</span>
+    </>
+  );
+}
+
 export default function ReactionPanel({ result, onNext, loading }) {
-  const reactionText = useTypewriter(result?.reaction ?? "");
   const isCorrect    = result?.correct;
 
   const borderColor = isCorrect ? "border-green-700" : "border-red-800";
@@ -44,8 +53,7 @@ export default function ReactionPanel({ result, onNext, loading }) {
 
       {/* Reaction text — typewriter */}
       <p className="text-slate-200 text-sm leading-relaxed min-h-[80px]">
-        {reactionText}
-        <span className="animate-pulse">▍</span>
+        <TypewriterText key={result?.reaction ?? ""} text={result?.reaction ?? ""} />
       </p>
 
       {/* Next problem */}

@@ -3,7 +3,7 @@ DEFAULT_DIFFICULTY = 1
 MASTERY_DIFFICULTY_THRESHOLD = 8
 
 # In-memory session cache — primary store for active request handling.
-# On server restart, sessions are reloaded from SQLite on first access.
+# On server restart, sessions are reloaded from Postgres on first access.
 # current_problem is never persisted — it's ephemeral within one problem cycle.
 SESSIONS: dict = {}
 
@@ -14,6 +14,8 @@ HISTORY_MAX_TURNS = 8  # keep last N exchanges in memory — caps context window
 def new_session_state(persona_id: str) -> dict:
     return {
         "persona_id": persona_id,
+        "user_id": None,  # set by routes/session.py's create_session right after this returns —
+                           # every session is owned by exactly one authenticated user now
         "topic": DEFAULT_TOPIC,
         "difficulty": DEFAULT_DIFFICULTY,
         "streak": 0,

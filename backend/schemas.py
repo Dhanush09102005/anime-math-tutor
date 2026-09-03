@@ -19,6 +19,25 @@ class AnswerShape(str, Enum):
     EXPRESSION = "expression"              # symbolic equivalence — e.g. equation of a line/circle, indefinite integrals, DEs
 
 
+# ── Auth ───────────────────────────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+
+
+# ── Session / problem / submit / chat (unchanged from v2.0.0) ──────────────────
+
 class CreateSessionRequest(BaseModel):
     persona_id: str
     mode: str = "qna"  # "qna" | "chat" — v2.2 chat mode alongside the existing Q&A flow
@@ -31,6 +50,17 @@ class CreateSessionResponse(BaseModel):
     topic: str
     difficulty: int
     mode: str
+
+
+class SessionHistoryItem(BaseModel):
+    session_id: str
+    persona_id: str
+    topic: str
+    difficulty: int
+    streak: int
+    attempt_count: int
+    correct_count: int
+    created_at: str
 
 
 class ProblemRequest(BaseModel):

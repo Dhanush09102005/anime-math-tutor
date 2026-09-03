@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 
 from math_engine.verify import verify_answer
 from math_engine.difficulty import next_difficulty
@@ -6,15 +7,22 @@ from personas.prompt_builder import load_persona, classify_event, build_system_p
 from llm_client.hf_client import get_reaction
 from routes.session import get_session
 import state
-import db.database as db
+from db.database import get_db
+from db import crud
+from db.models import User
+from auth.dependencies import get_current_user
 from schemas import SubmitRequest, SubmitResponse
 
 router = APIRouter()
 
 
 @router.post("/submit", response_model=SubmitResponse)
-def submit_answer(req: SubmitRequest):
-    s = get_session(req.session_id)
+def submit_answer(
+    req: SubmitRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    s = get_session(req.session_id, current_user, db)
     problem = s["current_problem"]
 
     if problem is None:
@@ -128,7 +136,8 @@ def submit_answer(req: SubmitRequest):
     if not not_serious:
         s["last_mistake_type"] = None if verification_result["correct"] else verification_result["mistake_type"]
         s["current_problem"] = None
-        db.update_session(
+        crud.update_session(
+            db,
             session_id=req.session_id,
             difficulty=new_difficulty,
             streak=new_streak,
@@ -136,7 +145,8 @@ def submit_answer(req: SubmitRequest):
             last_mistake_type=s["last_mistake_type"],
             topic=s["topic"],
         )
-        db.log_attempt(
+        crud.log_attempt(
+            db,
             session_id=req.session_id,
             problem_id=problem["id"],
             topic=problem["topic"],

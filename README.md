@@ -315,29 +315,14 @@ The "Linear Algebra" topic sat directly under a "LINEAR ALGEBRA" category header
 | v1.3.0 | Chat mode — free-form conversation via LLM tool-calling (`get_next_problem`, `check_answer`) wrapping the existing SymPy engine. New `/chat` endpoint, `ChatWindow.jsx`, mode-select step. Patched two HF-router tool-calling bugs and a retry-logic bug. |
 | v1.4.0 | Three new personas — Sukuna, Makima, Goku (Hisoka/Mahito considered and dropped) — persona JSONs, Sukuna's mood images + wiring fully done, Makima/Goku JSONs done but images/testing pending. Migrated off HF's router to Groq direct (`hf_client.py`), forced by both the monthly-credit cap and a mid-project Groq model deprecation. Fixed reasoning-model `<think>`-leak, tool-schema type mismatch, empty-string fallback bug, hardcoded-Kakashi header bug, and the Linear Algebra/Eigenvalues naming collision. Frustration thresholds retuned (5+/7+, was 2+/4+). Off-topic-message prompt fix (v1.3.0's #10) verified live. |
 | v2.0.0 | Chat mode revamped into teaching mode. Accepts text, image, or PDF. New `extractor.py` (vision model for images, pdfplumber for typed PDFs, PyMuPDF fallback for scanned). New `solver.py` (SymPy-backed teaching solver for equations, derivatives, integrals). `/chat` now accepts multipart form data. `ChatWindow.jsx` gains file upload. No difficulty tracking or mood changes in chat mode. `ChatResponse` simplified (streak/difficulty removed). |
+| v2.1.0 | Multi-user foundation completed: JWT authentication with httpOnly cookies, per-user session ownership, PostgreSQL persistence, session history summaries, improved auth UI, direct chat flow without topic selection, conversational intent routing, KaTeX equation rendering, and clearer loading states. Fixed the session-history 500 error caused by a missing SQLAlchemy `Integer` import. |
 
 ---
 
 ## Roadmap
 
-### v1.x — Kakashi + content expansion + persona roster ✅ closed out at v1.4.0
-- [x] Improved Kakashi LLM response quality — conversation history, 10-event taxonomy, frustration arc
-- [x] More math topics — 16 live
-- [x] Topic selection frontend flow
-- [x] Chat mode — free-form conversation alongside Quick Practice
-- [x] Sukuna, Makima, Goku — persona JSONs written (Hisoka/Mahito dropped from the plan)
-- [x] Sukuna — fully wired (images, frontend activation)
-- [ ] Makima, Goku — mood images, live testing, frontend activation still pending
-
 ### v2.x — Multi-user platform
-- [x] v2.0.0 — Chat mode revamped into teaching mode (text/image/PDF input, SymPy-solved, character-explained)
-- [ ] Makima, Goku — mood images, live testing, frontend activation
-- [ ] Authentication, user accounts
-- [ ] Per-user progress, analytics, history dashboards
 - [ ] Full database schema for users, multiple pages, proper routing
-- [ ] `not_serious` UI bug in Quick Practice
-- [ ] Hint that actually teaches
-- [ ] Full 10-category mood/event parity for chat mode
 
 ### v3.x — Immersive experience *(long-term)*
 - [ ] Animated characters, voice acting trained on source material

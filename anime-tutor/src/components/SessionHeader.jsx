@@ -1,4 +1,4 @@
-import { CHARACTERS } from "./CharacterSelect";
+import { CHARACTERS } from "../data/characters";
 
 // Universal difficulty label — no longer Naruto-specific rank letters,
 // since this now needs to make sense for every persona, not just Kakashi.
@@ -10,7 +10,7 @@ function difficultyLabel(difficulty) {
   return { label: "Master", color: "text-yellow-400" };
 }
 
-export default function SessionHeader({ personaId, streak, difficulty, onQuit }) {
+export default function SessionHeader({ personaId, streak, difficulty, onQuit, userEmail, onLogout }) {
   const { label, color } = difficultyLabel(difficulty);
   const character = CHARACTERS.find((c) => c.id === personaId);
   const displayName = character?.name ?? "Sensei";
@@ -41,6 +41,16 @@ export default function SessionHeader({ personaId, streak, difficulty, onQuit })
         >
           quit
         </button>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            title={userEmail ?? undefined}
+            className="text-slate-600 hover:text-slate-300 text-xs underline
+                       underline-offset-2 transition-colors"
+          >
+            log out
+          </button>
+        )}
       </div>
     </div>
   );

@@ -28,3 +28,6 @@ CONTEXT.md
 
 anime-tutor/src/assets/characters/
 anime-tutor/src/assets/kakashi/
+
+# Root-level .env for docker-compose
+.env

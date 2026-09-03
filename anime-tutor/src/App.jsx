@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { createSession, fetchProblem, submitAnswer, sendChatMessage } from "./api/client";
+import { useState, useEffect } from "react";
+import { createSession, fetchProblem, submitAnswer, sendChatMessage, getCurrentUser, logoutUser, fetchSessionHistory } from "./api/client";
+import AuthScreen from "./components/AuthScreen";
 import CharacterSelect from "./components/CharacterSelect";
 import ModeSelect from "./components/ModeSelect";
 import TopicSelect from "./components/TopicSelect";
@@ -8,9 +9,19 @@ import SessionHeader from "./components/SessionHeader";
 import ProblemCard from "./components/ProblemCard";
 import ReactionPanel from "./components/ReactionPanel";
 import ChatWindow from "./components/ChatWindow";
+import SessionHistory from "./components/SessionHistory";
 
 export default function App() {
-  const [phase, setPhase]         = useState("select"); // "select" | "mode" | "topic" | "problem" | "reaction" | "chat"
+  // "checking" — brief initial state while we ask /auth/me if a session
+  // cookie already exists (page refresh, or just landed back from Google's
+  // OAuth redirect). "auth" — logged out, show the login/register screen.
+  // Everything else is unchanged from before, just gated behind these two.
+  const [phase, setPhase]         = useState("checking");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [sessionHistory, setSessionHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(null);
+
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [selectedMode, setSelectedMode]       = useState(null); // "qna" | "chat" — chosen before the session exists
   const [sessionId, setSessionId] = useState(null);
@@ -19,8 +30,7 @@ export default function App() {
   const [problem, setProblem]     = useState(null);
   const [result, setResult]       = useState(null);
 
-  // chat-mode state — new. Kept separate from problem/result rather than
-  // unifying, so the existing qna handlers below stay untouched.
+  // chat-mode state — unchanged from before
   const [chatMessages, setChatMessages]     = useState([]);
   const [chatStreak, setChatStreak]         = useState(0);
   const [chatDifficulty, setChatDifficulty] = useState(1);
@@ -29,6 +39,47 @@ export default function App() {
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
 
+  // ── Auth check on load ──────────────────────────────────────────────────────
+  useEffect(() => {
+    getCurrentUser()
+      .then((user) => {
+        setCurrentUser(user);
+        setPhase("select");
+      })
+      .catch(() => {
+        // No valid cookie — not an error state, just means "show login"
+        setPhase("auth");
+      });
+  }, []);
+
+  function handleAuthenticated(user) {
+    setCurrentUser(user);
+    setError(null);
+    setPhase("select");
+  }
+
+  async function handleLogout() {
+    setLoading(true);
+    try {
+      await logoutUser();
+    } catch {
+      // Even if the logout call fails (e.g. network hiccup), still clear
+      // local state and drop back to the login screen — staying "logged
+      // in" client-side with a possibly-stale cookie is worse than forcing
+      // a fresh login.
+    } finally {
+      setCurrentUser(null);
+      setSessionId(null);
+      setSelectedPersona(null);
+      setSelectedMode(null);
+      setProblem(null);
+      setResult(null);
+      setChatMessages([]);
+      setLoading(false);
+      setPhase("auth");
+    }
+  }
+
   // ── Character select — no API call anymore, just stores the choice ────────
   function handleSelectCharacter(personaId) {
     setError(null);
@@ -36,15 +87,45 @@ export default function App() {
     setPhase("mode");
   }
 
-  // ── Mode select — no API call, just stores the choice ──────────────────────
-  function handleSelectMode(mode) {
-    setError(null);
-    setSelectedMode(mode);
-    setPhase("topic");
+  async function handleViewHistory() {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    setPhase("history");
+    try {
+      setSessionHistory(await fetchSessionHistory());
+    } catch (e) {
+      setHistoryError(e.message);
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
-  // ── Topic select — THIS is where the session actually gets created now,
-  // since chat mode needs persona + mode + topic all known at once ──────────
+  // ── Mode select — chat starts immediately; Q&A still needs a topic ────────
+  async function handleSelectMode(mode) {
+    setError(null);
+    setSelectedMode(mode);
+    if (mode !== "chat") {
+      setPhase("topic");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const session = await createSession(selectedPersona, mode);
+      setSessionId(session.session_id);
+      setCurrentMood("default");
+      setChatMessages([]);
+      setChatStreak(0);
+      setChatDifficulty(session.difficulty);
+      setPhase("chat");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Topic select — Quick Practice creates its session here ─────────────────
   async function handleSelectTopic(topicId) {
     setLoading(true);
     setError(null);
@@ -53,16 +134,9 @@ export default function App() {
       setSessionId(session.session_id);
       setCurrentMood("default");
 
-      if (selectedMode === "chat") {
-        setChatMessages([]);
-        setChatStreak(0);
-        setChatDifficulty(session.difficulty);
-        setPhase("chat");
-      } else {
-        const prob = await fetchProblem(session.session_id, topicId);
-        setProblem(prob);
-        setPhase("problem");
-      }
+      const prob = await fetchProblem(session.session_id, topicId);
+      setProblem(prob);
+      setPhase("problem");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -166,6 +240,25 @@ export default function App() {
     setPhase("select");
   }
 
+  // Checking auth — brief loading state, no flash of the login screen on
+  // every refresh for someone who's already logged in
+  if (phase === "checking") {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-8">
+        <span className="text-slate-500 text-sm animate-pulse">Loading...</span>
+      </div>
+    );
+  }
+
+  // Auth gate — logged out, show login/register
+  if (phase === "auth") {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-8">
+        <AuthScreen onAuthenticated={handleAuthenticated} loading={loading} setLoading={setLoading} />
+      </div>
+    );
+  }
+
   // Character select — full screen centered
   if (phase === "select") {
     return (
@@ -176,7 +269,36 @@ export default function App() {
             {error}
           </div>
         )}
-        <CharacterSelect onSelect={handleSelectCharacter} loading={loading} />
+        <button
+          onClick={handleLogout}
+          className="absolute top-4 right-4 text-slate-500 text-xs hover:text-slate-300
+                     transition-colors"
+        >
+          {currentUser?.email} · Log out
+        </button>
+        <div className="flex flex-col items-center gap-5 w-full">
+          <CharacterSelect onSelect={handleSelectCharacter} loading={loading} />
+          <button
+            type="button"
+            onClick={handleViewHistory}
+            className="text-slate-400 text-sm hover:text-slate-100 underline underline-offset-4 transition-colors"
+          >
+            View session history
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "history") {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-8">
+        <SessionHistory
+          sessions={sessionHistory}
+          loading={historyLoading}
+          error={historyError}
+          onBack={() => { setHistoryError(null); setPhase("select"); }}
+        />
       </div>
     );
   }
@@ -247,6 +369,8 @@ export default function App() {
             streak={isChat ? chatStreak : (result?.streak ?? 0)}
             difficulty={isChat ? chatDifficulty : (problem?.difficulty ?? 1)}
             onQuit={handleQuit}
+            userEmail={currentUser?.email}
+            onLogout={handleLogout}
           />
 
           <div className={isChat ? "flex-1 min-h-0 flex flex-col" : "flex-1 flex flex-col justify-center"}>

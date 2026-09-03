@@ -1,21 +1,30 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
 from math_engine.generate import generate_problem
 from routes.session import get_session
-import db.database as db
+from db.database import get_db
+from db import crud
+from db.models import User
+from auth.dependencies import get_current_user
 from schemas import ProblemRequest, ProblemResponse
 
 router = APIRouter()
 
 
 @router.post("/problem", response_model=ProblemResponse)
-def get_problem(req: ProblemRequest):
-    s = get_session(req.session_id)
+def get_problem(
+    req: ProblemRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    s = get_session(req.session_id, current_user, db)
 
     if req.topic:
         s["topic"] = req.topic
         # Persist the topic change so it survives a restart
-        db.update_session(
+        crud.update_session(
+            db,
             session_id=req.session_id,
             difficulty=s["difficulty"],
             streak=s["streak"],

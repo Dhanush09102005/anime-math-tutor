@@ -1,4 +1,16 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+
+function renderMath(text) {
+  return text
+    .replaceAll("\\[", "$$")
+    .replaceAll("\\]", "$$")
+    .replaceAll("\\(", "$")
+    .replaceAll("\\)", "$");
+}
 
 export default function ChatWindow({ messages, onSend, loading }) {
   const [input, setInput]   = useState("");
@@ -50,9 +62,11 @@ export default function ChatWindow({ messages, onSend, loading }) {
           ) : (
             <div
               key={i}
-              className="self-start max-w-[75%] px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm leading-relaxed whitespace-pre-wrap"
+              className="self-start max-w-[75%] px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm leading-relaxed chat-markdown"
             >
-              {m.content}
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {renderMath(m.content)}
+              </ReactMarkdown>
             </div>
           )
         )}
