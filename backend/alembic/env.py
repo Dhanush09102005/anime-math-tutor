@@ -2,11 +2,16 @@ import os
 import sys
 from logging.config import fileConfig
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # Make the backend/ package importable (this file lives in backend/alembic/)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+# Load .env before importing anything that reads os.environ
+# .env lives at the repo root (Anime_school/.env), not inside backend/
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
 from db.database import Base
 import db.models  # noqa: F401 — import registers all models on Base.metadata

@@ -1,5 +1,5 @@
 import sympy as sp
-from sympy import symbols
+from sympy import Matrix, symbols
 from sympy.parsing.sympy_parser import (
     parse_expr,
     standard_transformations,
@@ -198,36 +198,95 @@ def _parse_multi_value_answer(raw: str, canonical=None):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# vector_or_matrix — e.g. vectors, matrix results (determinant itself is
-# single_value; this is for results that are matrices/tuples, not scalars)
-# NOT IMPLEMENTED YET — no topic uses this shape yet. Planned for
-# matrices & determinants, linear algebra systems, 3D geometry & vectors.
-# Deliberately left unimplemented rather than guessed at, since designing
-# the checker without a real generator to test against risks getting the
-# comparison semantics (element-wise tolerance? exact? up to scalar multiple
-# for direction vectors?) wrong and having to redo it.
+# vector_or_matrix — exact ordered vector/matrix comparison.
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _verify_vector_or_matrix(problem: dict, user_answer: str) -> dict:
-    raise NotImplementedError(
-        "vector_or_matrix verification isn't implemented yet — no topic uses "
-        "this answer shape yet."
-    )
+    canonical_value = problem["canonical_answer"]
+    canonical = Matrix(canonical_value)
+    parsed = _parse_vector_or_matrix_answer(user_answer)
+    if parsed is None:
+        return {"correct": False, "parsed_answer": None, "mistake_type": None, "not_serious": True}
+    if (
+        parsed.rows == 1
+        and canonical.cols == 1
+        and canonical.rows > 1
+    ):
+        parsed = parsed.T
+
+    if parsed.shape != canonical.shape:
+        return {"correct": False, "parsed_answer": parsed, "mistake_type": "wrong", "not_serious": False}
+
+    differences = [
+        sp.simplify(parsed[row, col] - canonical[row, col])
+        for row in range(canonical.rows)
+        for col in range(canonical.cols)
+    ]
+    if all(value == 0 for value in differences):
+        return {"correct": True, "parsed_answer": parsed, "mistake_type": None, "not_serious": False}
+
+    if any(value == 0 for value in differences):
+        mistake_type = "partial"
+    else:
+        mistake_type = "wrong"
+    return {"correct": False, "parsed_answer": parsed, "mistake_type": mistake_type, "not_serious": False}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# expression — e.g. equation of a line/circle/conic, indefinite integrals,
-# differential equations. Checked by SymPy equivalence (e.g. differentiate
-# the user's indefinite-integral answer and compare to the integrand, or
-# check proportional coefficients for a line/circle), never string match.
-# NOT IMPLEMENTED YET — no topic uses this shape yet.
+# expression — symbolic equivalence for antiderivatives, allowing an
+# arbitrary constant of integration.
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _verify_expression(problem: dict, user_answer: str) -> dict:
-    raise NotImplementedError(
-        "expression verification isn't implemented yet — no topic uses this "
-        "answer shape yet."
-    )
+    if user_answer is None or not user_answer.strip():
+        return {"correct": False, "parsed_answer": None, "mistake_type": None, "not_serious": True}
+
+    try:
+        parsed = parse_expr(
+            user_answer.strip().replace("^", "**"),
+            transformations=TRANSFORMATIONS,
+            local_dict={"x": x},
+        )
+        canonical = problem["canonical_answer"]
+        # An antiderivative is equivalent if its derivative matches, regardless
+        # of the student's chosen constant of integration.
+        is_correct = sp.simplify(sp.diff(parsed - canonical, x)) == 0
+    except (AttributeError, NameError, SyntaxError, TypeError, ValueError, ZeroDivisionError, sp.SympifyError):
+        return {"correct": False, "parsed_answer": None, "mistake_type": None, "not_serious": True}
+
+    return {
+        "correct": is_correct,
+        "parsed_answer": parsed,
+        "mistake_type": None if is_correct else "wrong",
+        "not_serious": False,
+    }
+
+
+def _parse_vector_or_matrix_answer(raw: str):
+    if raw is None:
+        return None
+
+    cleaned = raw.strip().replace("[", "").replace("]", "").replace("(", "").replace(")", "")
+    if not cleaned:
+        return None
+
+    rows = [row.strip() for row in cleaned.split(";")]
+    parsed_rows = []
+    for row in rows:
+        tokens = [token.strip() for token in row.split(",")]
+        if not tokens or any(not token for token in tokens):
+            return None
+        parsed_row = []
+        for token in tokens:
+            value, _ = _parse_number_token(token, strict=False)
+            if value is None:
+                return None
+            parsed_row.append(value)
+        parsed_rows.append(parsed_row)
+
+    if any(len(row) != len(parsed_rows[0]) for row in parsed_rows):
+        return None
+    return Matrix(parsed_rows)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

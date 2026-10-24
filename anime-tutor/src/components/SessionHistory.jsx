@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { CHARACTERS } from "../data/characters";
 
 function formatTopic(topic) {
@@ -12,6 +13,7 @@ function formatDate(value) {
 }
 
 export default function SessionHistory({ sessions, loading, error, onBack }) {
+  const navigate = useNavigate();
   return (
     <div className="w-full max-w-3xl flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
@@ -19,14 +21,16 @@ export default function SessionHistory({ sessions, loading, error, onBack }) {
           <p className="text-slate-500 text-xs uppercase tracking-[0.25em]">Your progress</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-100">Session history</h1>
         </div>
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-3 py-2 rounded border border-slate-600 text-slate-300 text-sm
-                     hover:border-slate-400 hover:text-white transition-colors"
-        >
-          Back
-        </button>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-3 py-2 rounded border border-indigo-600 text-slate-300 text-sm
+                       hover:border-indigo-400 hover:text-white transition-colors"
+          >
+            Back
+          </button>
+        )}
       </div>
 
       {error && (
@@ -42,14 +46,14 @@ export default function SessionHistory({ sessions, loading, error, onBack }) {
       )}
 
       {!loading && !error && sessions.length === 0 && (
-        <div className="py-12 text-center rounded-lg border border-slate-800 bg-slate-900/60">
+        <div className="py-12 text-center rounded-lg border border-indigo-900 bg-violet-950/60">
           <p className="text-slate-300">No sessions yet.</p>
           <p className="mt-1 text-slate-500 text-sm">Complete a practice session and it will appear here.</p>
         </div>
       )}
 
       {!loading && !error && sessions.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/70">
+        <div className="overflow-hidden rounded-lg border border-indigo-700 bg-violet-950/70">
           {sessions.map((session) => {
             const character = CHARACTERS.find((item) => item.id === session.persona_id);
             const accuracy = session.attempt_count
@@ -59,7 +63,7 @@ export default function SessionHistory({ sessions, loading, error, onBack }) {
             return (
               <div
                 key={session.session_id}
-                className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4 border-b border-slate-800 last:border-b-0"
+                className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4 border-b border-indigo-900 last:border-b-0"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -75,6 +79,12 @@ export default function SessionHistory({ sessions, loading, error, onBack }) {
                   <div className="mt-1 text-slate-500">
                     {accuracy}% correct · streak {session.streak}
                   </div>
+                  <button
+                    onClick={() => navigate(`/history/${session.session_id}`)}
+                    className="mt-1 text-slate-400 hover:text-slate-100 underline underline-offset-2 transition-colors"
+                  >
+                    View details
+                  </button>
                 </div>
               </div>
             );

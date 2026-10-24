@@ -2,9 +2,9 @@ DEFAULT_TOPIC = "linear_equations"
 DEFAULT_DIFFICULTY = 1
 MASTERY_DIFFICULTY_THRESHOLD = 8
 
-# In-memory session cache — primary store for active request handling.
-# On server restart, sessions are reloaded from Postgres on first access.
-# current_problem is never persisted — it's ephemeral within one problem cycle.
+# In-memory session cache for active request handling.
+# After a server restart, persisted session state is restored from Postgres
+# on first access.
 SESSIONS: dict = {}
 
 
@@ -19,11 +19,11 @@ def new_session_state(persona_id: str) -> dict:
         "topic": DEFAULT_TOPIC,
         "difficulty": DEFAULT_DIFFICULTY,
         "streak": 0,
-        "consecutive_wrong": 0,  # resets on correct, used for frustration arc
+        "consecutive_wrong": 0,  # persisted; resets on correct, used for frustration arc
         "current_problem": None,
         "last_mistake_type": None,
         "mastery_announced": False,
-        "conversation_history": [],  # list of {role, content} — never persisted to DB
+        "conversation_history": [],  # list of {role, content}, persisted to DB
 
         # v2.2 chat mode — reuses everything above (topic/difficulty/streak/
         # current_problem/conversation_history all apply directly to chat too,

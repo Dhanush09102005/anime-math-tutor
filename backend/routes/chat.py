@@ -11,18 +11,17 @@ No difficulty tracking. No mood image changes. No tool calling.
 The character is purely a teacher here, not a quiz master.
 """
 
-import io
 import re
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from math_engine.extractor import extract_from_text, extract_from_image, extract_from_pdf
+from math_engine.extractor import extract_from_image, extract_from_pdf
 from math_engine.solver import solve_problem
 from personas.prompt_builder import load_persona, build_chat_system_prompt
 from llm_client.hf_client import get_teaching_reply, client
 from routes.session import get_session
 from db.database import get_db
+from db import crud
 from db.models import User
 from auth.dependencies import get_current_user
 import state
@@ -61,7 +60,7 @@ async def chat(
         )
 
     persona = load_persona(s["persona_id"])
-    history = s.get("conversation_history", [])
+    history = list(s.get("conversation_history", []))
 
     # ── 1. Extract problem text ───────────────────────────────────────────────
     extracted_problem = ""
@@ -147,6 +146,18 @@ async def chat(
     max_messages = state.HISTORY_MAX_TURNS * 2
     if len(history) > max_messages:
         history = history[-max_messages:]
+    crud.update_session(
+        db,
+        session_id=session_id,
+        difficulty=s["difficulty"],
+        streak=s["streak"],
+        mastery_announced=s["mastery_announced"],
+        last_mistake_type=s["last_mistake_type"],
+        topic=s["topic"],
+        current_problem=s["current_problem"],
+        conversation_history=history,
+        consecutive_wrong=s["consecutive_wrong"],
+    )
     s["conversation_history"] = history
 
     return ChatResponse(reply=reply, mood="default")

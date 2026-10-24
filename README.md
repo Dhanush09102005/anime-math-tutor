@@ -16,9 +16,12 @@ Character art changes based on how you're doing. Nail a streak and they actually
 
 | Layer | Tech |
 |---|---|
-| Frontend | React 18 + Vite + Tailwind CSS v4 |
+| Frontend | React 19 + Vite + Tailwind CSS v4 + React Router 7 |
 | Backend | Python, FastAPI, SymPy |
+| Database | PostgreSQL, SQLAlchemy, Alembic migrations |
+| Auth | JWT (httpOnly cookie) + Google OAuth (Authlib) |
 | LLM | `openai/gpt-oss-120b` via Groq, direct (no longer routed through HuggingFace) |
+| Deployment | Docker Compose (`db` + `backend` + `frontend` services) |
 
 ---
 
@@ -31,18 +34,15 @@ Anime_school/
 │   ├── schemas.py                Pydantic models, incl. AnswerShape enum, Chat models
 │   ├── state.py                  Session cache + constants (tracks mode: qna | chat)
 │   ├── requirements.txt
-│   ├── tutor.db                  SQLite database (gitignored)
-│   ├── .env                      GROQ_API_KEY (gitignored) — HF_TOKEN no longer used
 │   ├── db/
-│   │   └── database.py           Schema, init, session + attempt CRUD
+│   │   ├── database.py           PostgreSQL engine and SQLAlchemy session dependency
+│   │   ├── models.py             Users, sessions, and attempts
+│   │   └── crud.py               Persistence and analytics
 │   ├── math_engine/
-│   │   ├── generate.py           Problem generation — 16 topics, SymPy-backed
-│   │   ├── verify.py             Shape-dispatched answer verification
+│   │   ├── generate.py           Procedural + validated hybrid generators for 16 topics
+│   │   ├── verify.py             SymPy verification for four answer shapes
 │   │   ├── difficulty.py        Adaptive difficulty logic
-│   │   └── chat_tools.py        Wraps generate/verify as LLM tool-calls for chat mode.
-│   │                              `answer` param accepts string OR number (see
-│   │                              "Problems faced" — Groq validates tool-call args
-│   │                              server-side against this schema).
+│   │   └── chat_tools.py        Legacy tool-calling helpers (not used by current chat route)
 │   ├── personas/
 │   │   ├── kakashi.json          Kakashi persona config, incl. fallback_line
 │   │   ├── sukuna.json           Sukuna persona config, incl. fallback_line
@@ -59,18 +59,14 @@ Anime_school/
 │   └── routes/
 │       ├── session.py            POST /session (takes mode + topic)
 │       ├── problem.py            POST /problem
-│       ├── submit.py             POST /submit
-│       └── chat.py              POST /chat — the agentic tool-calling loop. Now
-│                                  falls back on empty string replies (not just
-│                                  None), forces one final tools-omitted call if the
-│                                  loop exhausts without a reply, and uses each
-│                                  persona's own fallback_line instead of a
-│                                  hardcoded Kakashi-flavored one.
+│       ├── submit.py             POST /submit and /hint
+│       ├── chat.py               POST /chat — SymPy-backed teaching mode
+│       └── analytics.py          Dashboard and syllabus progress
 │
 └── anime-tutor/
     └── src/
         ├── App.jsx               Phase machine: select → mode → topic → (problem/reaction | chat)
-        ├── api/client.js         Fetch wrapper for all 4 endpoints
+        ├── api/client.js         Authenticated API client, including hints/history
         ├── components/
         │   ├── CharacterSelect.jsx   CHARACTERS array now exported — reused by
         │   │                          SessionHeader.jsx for name/title lookup
@@ -95,8 +91,8 @@ Anime_school/
         └── assets/
             ├── kakashi/           Mood images (one per event type)
             ├── sukuna/            Mood images — full set, wired
-            ├── makima/            Mood images — pending as of this document
-            ├── goku/              Mood images — pending as of this document
+            ├── makima/            Mood images — wired
+            ├── goku/              Mood images — wired
             └── characters/        Character select card images
 ```
 
@@ -104,55 +100,119 @@ Anime_school/
 
 ## Running locally
 
-**1. Backend**
+The supported, simplest way to run the complete app is Docker Compose. SQLite is not supported; PostgreSQL is required.
 
-```bash
-cd backend
-pip install -r requirements.txt
+### Prerequisites
+
+- Windows, macOS, or Linux with Docker Desktop (or Docker Engine) and the Compose v2 plugin. On Windows, start Docker Desktop before running the commands below.
+- Ports **80**, **8000**, and **5432** available on your machine.
+- Internet access to download container images and call Google OAuth and Groq. Python 3 is optional; it is only used by the example command that generates random secrets.
+- A Groq API key for chat, problem generation, hints, and reactions. Create one at [console.groq.com](https://console.groq.com).
+- A Google OAuth web client for Google sign-in. Set its authorized redirect URI to exactly `http://localhost:8000/auth/oauth/google/callback`. Email/password login also exists, but the backend requires OAuth environment variables to be present at startup.
+- Git, if cloning the project, and a terminal at the repository root (the directory containing `docker-compose.yml`).
+
+### First run
+
+1. Get the source and enter the repository directory:
+
+   ```powershell
+   git clone https://github.com/Dhanush09102005/anime-math-tutor.git
+   Set-Location anime-math-tutor
+   ```
+
+   If you already have the source, just open a terminal in its repository root.
+
+2. Create the root environment file. In PowerShell:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   Edit `.env` and set:
+
+   - `POSTGRES_PASSWORD` to a new strong database password.
+   - `JWT_SECRET_KEY` and `SESSION_SECRET_KEY` to two different random secrets. Generate each with `python -c "import secrets; print(secrets.token_hex(32))"` and paste the outputs; do not use the example text.
+   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from your Google OAuth web client.
+   - `GOOGLE_REDIRECT_URI` to `http://localhost:8000/auth/oauth/google/callback`, matching the URI registered with Google.
+   - `GROQ_API_KEY` to your Groq API key.
+   - Keep `FRONTEND_URL=http://localhost` and `VITE_API_URL=http://localhost:8000` for the Docker Compose local setup.
+
+   `DATABASE_URL` in the example is for running the backend directly on your host. Compose supplies its own database URL to the backend container, so you do not need to edit this value when using the full Compose setup. Never commit `.env` or share its secrets.
+
+3. Validate the Compose configuration, then build and start the app:
+
+   ```powershell
+   docker compose config --quiet
+   docker compose up --build -d
+   ```
+
+   On the first run this downloads/builds the images, waits for PostgreSQL health, applies Alembic migrations automatically (including `0004` for resumable session state), and starts the API and nginx frontend. The `pgdata` and `avatars_data` named volumes preserve database data and uploaded avatars between container rebuilds.
+
+4. Confirm the services started and the API is healthy:
+
+   ```powershell
+   docker compose ps
+   Invoke-RestMethod http://localhost:8000/health
+   ```
+
+5. Open the app at **http://localhost**. The API is at **http://localhost:8000** and its interactive docs are at **http://localhost:8000/docs**. Register with email/password or use Google sign-in after configuring the OAuth client.
+
+Active sessions are stored in PostgreSQL: chat turns, the current problem and its server-only answer, progress, and consecutive-wrong count survive API restarts. The active session ID is kept in the browser tab's session storage, and the app restores that session after refreshing the same tab. The resume endpoint returns the active problem prompt without its canonical answer. Closing the tab or starting a different session does not provide a session picker for resuming an older session.
+
+### Stop, restart, and troubleshoot
+
+```powershell
+docker compose logs -f backend    # inspect API/provider/database startup errors
+docker compose logs -f frontend   # inspect frontend container logs
+docker compose down               # stop services; preserves database and avatars
+docker compose up -d              # start again without rebuilding
+docker compose up --build -d      # rebuild after changing source or configuration
 ```
 
-Create a `.env` file in `backend/`:
-```
-GROQ_API_KEY=your_groq_key_here
-```
+PostgreSQL applies `POSTGRES_PASSWORD` only when its data volume is first initialized. Changing `.env` later does not change the existing database user's password. Prefer updating the database role to match; `docker compose down -v` deletes **all** Compose volumes, including database and avatar data, and should only be used if you intentionally want a full data reset.
 
-```bash
-uvicorn main:app --reload
-# → http://localhost:8000
-```
+### Frontend hot reload (optional)
 
-**2. Frontend**
+To edit the frontend with Vite while using the containerized API and database, start only the backend dependencies:
 
-```bash
-cd anime-tutor
-npm install
+```powershell
+docker compose up --build -d db backend
+Set-Location anime-tutor
+npm ci
 npm run dev
-# → http://localhost:5173
 ```
 
-> **Note on the Groq API key:** as of this version, LLM calls go straight to Groq's API (`https://api.groq.com/openai/v1`) instead of through Hugging Face's router. Grab a free key at [console.groq.com](https://console.groq.com) — no credit card required. Groq's free tier is a **daily-resetting rate limit** (~30 requests/min, ~1,000 requests/day, ~100K tokens/day for the models this project uses), not a monthly dollar-credit pool — it will not strand a demo mid-session the way HF's old monthly cap did, but it is a real limit, not unlimited.
+Open **http://localhost:5173**. The frontend API client calls `http://localhost:8000` directly; Vite does not proxy API requests. CORS is configured to allow the local Vite origin. Stop the Vite process with Ctrl+C and stop the containers from the repository root with `docker compose down`.
+
+> **Groq usage:** model requests are sent directly to Groq's OpenAI-compatible API. Provider availability and rate limits apply; this project has not been verified against live model output as part of its automated tests.
+
+### Deployment status
+
+This repository is **not deployed**, and there is no public app URL to share. `http://localhost` is a local address that works only on the machine running Docker. A production launch still requires choosing a host/domain, HTTPS and reverse-proxy setup, production database and secrets, production OAuth origins/redirect URI, authorized public-use content/assets, and end-to-end smoke tests. Do not expose PostgreSQL to the public internet; the Compose API and database ports bind to loopback by default. Compose is a local run configuration, not a completed production deployment.
 
 ---
 
 ## How it works
 
-Four API calls drive the app:
+The API surface includes:
 
 ```
 POST /session   { persona_id, mode, topic? }        → session_id
 POST /problem   { session_id, topic? }               → problem text + difficulty + answer_shape
 POST /submit    { session_id, problem_id, answer }   → correct/wrong + LLM reaction
-POST /chat      { session_id, message }              → free-form reply + mood + streak + difficulty
+POST /hint      { session_id, problem_id }           → non-forfeiting hint
+POST /chat      { session_id, message, file? }       → teaching reply
+GET  /sessions/{session_id}/resume                  → restore owned active session
 ```
 
-The backend never sends the answer to the frontend. Verification is server-side only, via SymPy — **the LLM never grades answers**, it only reacts to an already-verified result. This holds in both modes: in Quick Practice, verification happens directly in `/submit`; in chat mode, the LLM can only find out if an answer is right by calling a `check_answer` tool that runs the same SymPy verification underneath — it cannot decide correctness on its own authority. This is a core, deliberate design principle, reaffirmed multiple times (including once when LLM-based grading was proposed and explicitly rejected on reliability grounds) rather than incidental. **The LLM does not propose or generate problem content** — problems come entirely from `math_engine/generate.py`'s hand-written generators; the LLM only calls `get_next_problem` to request one and delivers it in character.
+Quick Practice answer verification and teaching-mode equation solving use SymPy. The LLM never grades an answer. For all 16 topics, the LLM proposes bounded, topic-specific problem parameters; the backend validates them and constructs the prompt and canonical answer independently. SymPy is used where symbolic math is needed. The canonical answer remains server-side. Tests exercise two distinct proposal fixtures per topic, but actual model-generated variety and educational quality still need live-provider evaluation.
 
 ### Two modes
 
 - **Quick Practice** — the original flow. Problem, answer, instant reaction, repeat.
-- **Just Talk** — free-form conversation. The student can ask for a problem, ask "why", go off-topic, ask for a different explanation — the LLM drives the whole turn, reaching for tools (`get_next_problem`, `check_answer`) only when it actually needs to generate or verify something, never to decide correctness itself.
+- **Just Talk** — submit a question or math problem as text, image, or PDF. SymPy solves supported problem forms; the character explains the result or gives a clearly unverified general method when parsing is unsupported.
 
-Both modes share the same character, the same math engine, and the same mood-image system. Chat mode's mood signal is currently a coarse `correct_first_try` / `incorrect` / `default` mapping — not yet the full 10-category event taxonomy Quick Practice has.
+Both modes share the character and account/session infrastructure. Quick Practice uses event-specific mood images; Teaching mode currently keeps the default mood.
 
 ### Topics (16 live)
 
@@ -167,7 +227,7 @@ Both modes share the same character, the same math engine, and the same mood-ima
 | Probability & Statistics | P&C and Probability, Statistics |
 | Sets & Relations | Sets & Relations |
 
-**Known, acknowledged limitation:** these problems are procedurally generated by SymPy and are **correctness-guaranteed, but not true JEE-Advanced difficulty or variety** — e.g. Statistics is currently mean-only (not variance/SD), Vectors is dot-product-only (not triple products, skew-line distances, foot-of-perpendicular problems, etc.), Logarithms and "Playing with Numbers" problems tend to land on a narrow, predictable range of small-integer answers. This was raised directly as a real concern this session (not just a known gap) — see "Open questions" below for the actual discussion and where it landed.
+**Limitations:** all 16 topics have validated hybrid parameter proposal paths, but the automated variety checks use fixed test fixtures; live model output quality and syllabus coverage have not been evaluated. This is not an official JEE question bank and should not be represented as JEE Main/Advanced exam coverage.
 
 ### Answer shapes
 
@@ -177,14 +237,14 @@ Every problem declares an `answer_shape` (in `schemas.py`), which determines bot
 |---|---|---|
 | `single_value` | one number/fraction | ✅ implemented |
 | `multi_value` | a set of valid answers (e.g. quadratic roots) | ✅ implemented |
-| `vector_or_matrix` | ordered tuple/grid, not a scalar | ⛔ not implemented |
-| `expression` | symbolic equivalence (e.g. equation of a circle) | ⛔ not implemented |
+| `vector_or_matrix` | ordered vector or matrix | ✅ exact element-wise verification |
+| `expression` | symbolic antiderivative equivalence, including `+ C` | ✅ implemented for calculus |
 
-All 16 current topics are deliberately phrased to land on `single_value` or `multi_value` specifically so they could go live without needing the other two shapes built first.
+Vector/matrix answers use comma-separated values and semicolons between matrix rows. Symbolic equivalence is currently used for polynomial antiderivatives.
 
-### Chat mode's tool-calling loop
+### Teaching-mode flow
 
-`routes/chat.py` runs a loop: send the conversation + available tools to the LLM → if it wants to call `get_next_problem` or `check_answer`, execute it via `math_engine/chat_tools.py` (which wraps the exact same `generate_problem`/`verify_answer` functions Quick Practice uses) → feed the result back → repeat until the model returns a plain-text reply instead of a tool call. Capped at 4 iterations so a model that won't settle can't hang a request forever. **If the loop exhausts all 4 iterations without ever producing a plain-text reply** (the model kept calling tools every turn), one final call is made with `tools` withheld entirely — this forces a plain-text response instead of another tool call, since there's nothing left to call. If even that comes back empty, the active persona's own `fallback_line` is used, so a failed turn still sounds like the character instead of a generic error or a blank message.
+`routes/chat.py` extracts text from user input or an uploaded image/PDF, attempts a SymPy solution for supported math, and asks the selected persona to explain. It does not use the legacy `chat_tools.py` tool loop. `/hint` is separate: it returns a short LLM-generated hint without submitting an attempt, changing streak, or consuming the active problem.
 
 ### Adaptive difficulty
 
@@ -195,7 +255,7 @@ Problems scale from difficulty 1–10 based on streak:
 
 ### Event system (Quick Practice)
 
-Every submit maps to one of 10 event categories:
+Every Quick Practice submit maps to one of 11 event categories:
 
 | Event | Condition |
 |---|---|
@@ -207,7 +267,7 @@ Every submit maps to one of 10 event categories:
 | `repeated_mistake` | Wrong answer, same mistake type as last time |
 | `frustration_warning` | 5–6 consecutive wrong answers |
 | `full_frustration` | 7+ consecutive wrong answers |
-| `give_up_request` | User asked for a hint |
+| `give_up_request` | Legacy `give_up=true` submission; the UI hint button no longer forfeits |
 | `topic_mastered` | Correct at difficulty ≥ 8 (once per session) |
 | `not_serious` | Non-numeric or unreduced-arithmetic input |
 
@@ -313,32 +373,44 @@ The "Linear Algebra" topic sat directly under a "LINEAR ALGEBRA" category header
 | v1.1.0 | Conversation history, 10-category event taxonomy, frustration arc, mistake-specific feedback, difficulty milestones, all mood images wired |
 | v1.2.0 | Answer-shape architecture (`single_value` / `multi_value`) generalised across schema, generation, and verification. 15 new topics (16 total). Topic selection frontend flow. Fixed `not_serious` false-positive on fractional/π answers and give-up path crash. |
 | v1.3.0 | Chat mode — free-form conversation via LLM tool-calling (`get_next_problem`, `check_answer`) wrapping the existing SymPy engine. New `/chat` endpoint, `ChatWindow.jsx`, mode-select step. Patched two HF-router tool-calling bugs and a retry-logic bug. |
-| v1.4.0 | Three new personas — Sukuna, Makima, Goku (Hisoka/Mahito considered and dropped) — persona JSONs, Sukuna's mood images + wiring fully done, Makima/Goku JSONs done but images/testing pending. Migrated off HF's router to Groq direct (`hf_client.py`), forced by both the monthly-credit cap and a mid-project Groq model deprecation. Fixed reasoning-model `<think>`-leak, tool-schema type mismatch, empty-string fallback bug, hardcoded-Kakashi header bug, and the Linear Algebra/Eigenvalues naming collision. Frustration thresholds retuned (5+/7+, was 2+/4+). Off-topic-message prompt fix (v1.3.0's #10) verified live. |
+| v1.4.0 | Sukuna, Makima, and Goku personas; all four characters activated with mood images. Migrated from Hugging Face's router to Groq direct. Fixed reasoning output leakage, tool-schema mismatches, empty replies, persona headers, and topic/category naming collisions. |
 | v2.0.0 | Chat mode revamped into teaching mode. Accepts text, image, or PDF. New `extractor.py` (vision model for images, pdfplumber for typed PDFs, PyMuPDF fallback for scanned). New `solver.py` (SymPy-backed teaching solver for equations, derivatives, integrals). `/chat` now accepts multipart form data. `ChatWindow.jsx` gains file upload. No difficulty tracking or mood changes in chat mode. `ChatResponse` simplified (streak/difficulty removed). |
 | v2.1.0 | Multi-user foundation completed: JWT authentication with httpOnly cookies, per-user session ownership, PostgreSQL persistence, session history summaries, improved auth UI, direct chat flow without topic selection, conversational intent routing, KaTeX equation rendering, and clearer loading states. Fixed the session-history 500 error caused by a missing SQLAlchemy `Integer` import. |
+| v2.2.0 | New pages: `/dashboard`, `/syllabus`, `/history/:sessionId`, `/account`, `/privacy`, `/terms`, `/404`. Profile customization (display name, avatar upload). Persistent top navbar with active-route highlighting, hidden only during active sessions. Fade/slide page transitions that actually work (key on component, not div). Polished pill-style buttons throughout. Dashboard as default post-login page. React Router 7 wired throughout. New backend: `GET /analytics`, `GET /syllabus/progress`, `PATCH /auth/profile`, `POST /auth/profile/avatar`, `GET /sessions/{id}/attempts`, `POST /auth/change-password`, `DELETE /auth/account`. `display_name` + `avatar_url` + `mode` (session) added to DB models with migrations. `delete_user` cascade fixed. Frontend containerized (nginx, multi-stage Docker build). `avatars_data` named volume in docker-compose. `VITE_API_URL` build arg. Fixed: missing `src/data/characters.js` (build crash), missing `PrivacyPage`/`TermsPage` (build crash), `TopNav` null vs undefined check, `startTopic` from SyllabusPage now actually forwards through character/mode to topic selection. |
+| v3.0 work in progress | Non-forfeiting hints; correct retry UX for invalid input; four-answer-shape verification; validated LLM-proposed parameters for all 16 topics; deterministic proposal variety and answer-verification tests; session summaries; lazy-loaded chat bundle; configurable CORS. |
 
 ---
 
 ## Roadmap
 
 ### v2.x — Multi-user platform
-- [ ] Full database schema for users, multiple pages, proper routing
+- [x] v2.0.0 — Chat mode revamped into teaching mode
+- [x] v2.1.0 — Auth, PostgreSQL, session ownership, history
+- [x] v2.2.0 — Dashboard, Syllabus, account management, React Router, persistent navbar, page transitions, profile customization, Docker frontend, all routing bugs fixed
+- [x] Activate all four characters and wire their mood images
+- [x] Keep `not_serious` attempts on the same problem in the UI
+- [x] Provide hints without forfeiting or recording an attempt
+- [x] Persist chat history, active problems, and session progress; restore the active session after API restart or same-tab refresh
 
 ### v3.x — Immersive experience *(long-term)*
-- [ ] Animated characters, voice acting trained on source material
-- [ ] Dialogue-box UI, doubt-solving chat, session summaries, periodic tests
-- [ ] Real JEE Mains + Advanced question bank
-- [ ] `vector_or_matrix` and `expression` answer-shape verification
+- [x] `vector_or_matrix` and `expression` verification for generated exercises
+- [x] Hybrid parameter proposals for linear equations, quadratics, probability, and statistics; SymPy computes the answers
+- [x] Expand validated hybrid parameter generation to all 16 topics; test two distinct proposal fixtures and answer verification per topic
+- [ ] Evaluate live model-generated variety, educational quality, and syllabus depth across all topics
+- [x] Quick Practice session summaries in history detail
+- [ ] Periodic mixed-topic assessments
+- [ ] Animated dialogue presentation and optional generic text-to-speech
+- [ ] Build an original or properly licensed JEE-style question bank; do not label generated practice as official exam content
 
 ---
 
-## Open questions (unresolved as of this document — read before making assumptions)
+## Project status and deployment boundary
 
-**Problem generation depth/variety.** Raised directly this session as a real, specific concern — not a vague "make it better" ask. Current generators produce narrow, predictable problems (e.g. logarithm answers mostly land in the 1–4 range, "numbers" topic is remainder-only). A hybrid approach was discussed at length — LLM proposes a problem's setup/structure, SymPy independently solves it from the symbolic parameters to get the canonical answer (never trusting the LLM's stated answer), regenerating on degenerate cases — which does NOT violate the "no LLM grading" rule, since the LLM would never be judging correctness, only proposing structure. **This was discussed as feasible but was NOT decided as the direction to take** — the conversation moved into whether it's worth the scope at all versus focusing on other things, and that question was **left open, not resolved either way**. Do not assume this is scoped for v1.5, v2.x, or anywhere else without asking the user directly first.
+Validated hybrid generation is wired for all 16 topics. Topic-specific bounded proposal fields are validated, and problem prompts and canonical answers are built by backend code (using SymPy for symbolic calculations). Regression tests show that two distinct valid proposal fixtures per topic produce different prompts and verifiable answers. Session chat history, active problems, and related progress now persist in PostgreSQL; an authenticated resume endpoint restores the active session and never returns the canonical answer. The 26 backend tests cover active-problem JSON round-trips for every topic. This is code-level variety coverage—not a statistical evaluation of live LLM output, educational quality, or full-syllabus/JEE coverage, which remain unfinished.
 
-**Public deployment.** The project's original hard constraint (personal/local use only, due to copyrighted characters) is being dropped at the user's explicit direction — they intend to actually deploy this for interview value. This is a genuine scope change from earlier context, not a misunderstanding. The copyright-risk conversation that justified the original constraint was about *personal* use; a public-facing deployment with the same copyrighted characters is a meaningfully different risk profile and deserves its own real discussion when deployment work actually starts — don't treat the old constraint's reasoning as automatically resolved just because the constraint itself was lifted.
+Docker Compose is prepared for local use; `FRONTEND_URL`, `VITE_API_URL`, and CORS support deployment configuration. The project has **not** been deployed. Hosting, domain, TLS/reverse proxy, managed database, provider OAuth settings, secrets, and production smoke tests still need configuration and verification. Before public release, use only character content and assets authorized for that use. Any future speech feature should use licensed or generic voices, not replicas trained on source recordings.
 
-**Docker/deployment infrastructure.** Discussed and explicitly deferred — not needed for the current single-user local dev setup, and the natural trigger point (if the DB moves off SQLite to something like Postgres for real multi-user support) hasn't happened yet. Revisit when v2.x's actual database work begins, not before.
+**Completion verdict:** the project is not finished. The current frontend builds and lint passes, and the focused backend tests pass; v3 features and real production deployment remain in progress.
 
 ---
 
@@ -346,4 +418,14 @@ The "Linear Algebra" topic sat directly under a "LINEAR ALGEBRA" category header
 
 | Variable | Where | Description |
 |---|---|---|
-| `GROQ_API_KEY` | `backend/.env` | Groq API key for direct LLM access (replaces the old `HF_TOKEN`) |
+| `POSTGRES_PASSWORD` | repository-root `.env` | Password for the PostgreSQL `tutor` user; Compose uses it to initialize the database and build the container database URL. |
+| `DATABASE_URL` | repository-root `.env` for host-run backend | SQLAlchemy PostgreSQL URL. Compose overrides this inside its backend container; for host-run backend, point it at the local PostgreSQL service, e.g. `postgresql+psycopg2://tutor:<password>@localhost:5432/tutor`. |
+| `JWT_SECRET_KEY` | repository-root `.env` | Secret used to sign authentication JWTs; generate a unique random value. |
+| `SESSION_SECRET_KEY` | repository-root `.env` | Separate secret for OAuth session/CSRF state; generate a different random value. |
+| `GOOGLE_CLIENT_ID` | repository-root `.env` | Google OAuth web application client ID; required by backend initialization. |
+| `GOOGLE_CLIENT_SECRET` | repository-root `.env` | Secret paired with the Google OAuth client ID. |
+| `GOOGLE_REDIRECT_URI` | repository-root `.env` | Must exactly match the OAuth redirect URI registered with Google; local default is `http://localhost:8000/auth/oauth/google/callback`. |
+| `GROQ_API_KEY` | repository-root `.env` | Groq API key for direct LLM access (replaces the old `HF_TOKEN`). |
+| `FRONTEND_URL` | repository-root `.env` | Browser frontend origin used for OAuth redirects and CORS. Local Docker default: `http://localhost`. |
+| `VITE_API_URL` | repository-root `.env` | API URL embedded in the frontend at Docker build time. Local Docker default: `http://localhost:8000`; for a public deployment, use the externally reachable HTTPS API URL. |
+| `ENV` | repository-root `.env` | Development/production setting for host-run backend auth cookies. Compose currently sets `ENV=production` in the backend container. |

@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from db.database import Base
@@ -26,18 +26,18 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, nullable=False, index=True)
-
-    # Null for OAuth-only accounts — a user who only ever signed in via
-    # Google has no password to hash. verify checks for this before
-    # attempting password comparison (see routes/auth.py login()).
     hashed_password = Column(String, nullable=True)
-
-    oauth_provider = Column(String, nullable=True)  # e.g. "google"; null for password-only accounts
+    oauth_provider = Column(String, nullable=True)
     oauth_id = Column(String, nullable=True)
-
+    display_name = Column(String, nullable=True)       # user-set display name
+    avatar_url = Column(String, nullable=True)         # uploaded avatar, stored as URL/path
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
-    sessions = relationship("SessionModel", back_populates="user")
+    sessions = relationship(
+        "SessionModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         UniqueConstraint("oauth_provider", "oauth_id", name="uq_oauth_identity"),
@@ -52,14 +52,22 @@ class SessionModel(Base):
 
     persona_id = Column(String, nullable=False)
     topic = Column(String, nullable=False)
+    mode = Column(String, nullable=False, default="qna")   # "qna" | "chat"
     difficulty = Column(Integer, nullable=False)
     streak = Column(Integer, nullable=False, default=0)
     mastery_announced = Column(Boolean, nullable=False, default=False)
     last_mistake_type = Column(String, nullable=True)
+    consecutive_wrong = Column(Integer, nullable=False, default=0)
+    current_problem = Column(JSONB, nullable=True)
+    conversation_history = Column(JSONB, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     user = relationship("User", back_populates="sessions")
-    attempts = relationship("Attempt", back_populates="session")
+    attempts = relationship(
+        "Attempt",
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
 
 
 class Attempt(Base):

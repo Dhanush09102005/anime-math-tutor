@@ -1,6 +1,7 @@
 import json
 import random
 from pathlib import Path
+from sympy.matrices import MatrixBase
 
 PERSONAS_DIR = Path(__file__).parent
 
@@ -12,12 +13,15 @@ def format_answer_for_display(value) -> str:
     (multi_value) print as a sorted, comma-separated list, so a quadratic's
     roots read as "2, 3" instead of Python's raw set repr "{2, 99}".
 
-    vector_or_matrix and expression shapes aren't implemented yet
-    (verify.py raises NotImplementedError for them), so this only needs to
-    handle scalar and iterable-of-scalars for now.
+    Matrices use the same row/column separators as the answer input. Symbolic
+    expressions use SymPy's canonical string form.
     """
     if value is None:
         return "?"
+    if isinstance(value, MatrixBase):
+        if value.cols == 1 and value.rows > 1:
+            return ", ".join(str(value[row, 0]) for row in range(value.rows))
+        return "; ".join(", ".join(str(cell) for cell in row) for row in value.tolist())
     if isinstance(value, (set, frozenset, list, tuple)):
         try:
             ordered = sorted(value, key=lambda v: float(v))

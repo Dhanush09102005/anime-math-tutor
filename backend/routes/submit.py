@@ -1,19 +1,56 @@
 from fastapi import APIRouter, HTTPException, Depends
+from openai import APIError
 from sqlalchemy.orm import Session
 
 from math_engine.verify import verify_answer
 from math_engine.difficulty import next_difficulty
-from personas.prompt_builder import load_persona, classify_event, build_system_prompt, build_turn, format_answer_for_display
-from llm_client.hf_client import get_reaction
+from personas.prompt_builder import (
+    load_persona,
+    classify_event,
+    build_system_prompt,
+    build_turn,
+    build_chat_system_prompt,
+    format_answer_for_display,
+)
+from llm_client.hf_client import get_reaction, get_teaching_reply
 from routes.session import get_session
 import state
 from db.database import get_db
 from db import crud
 from db.models import User
 from auth.dependencies import get_current_user
-from schemas import SubmitRequest, SubmitResponse
+from schemas import SubmitRequest, SubmitResponse, HintRequest, HintResponse
 
 router = APIRouter()
+
+
+@router.post("/hint", response_model=HintResponse)
+def request_hint(
+    req: HintRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    s = get_session(req.session_id, current_user, db)
+    problem = s.get("current_problem")
+    if problem is None:
+        raise HTTPException(status_code=400, detail="No active problem. Call POST /problem first.")
+    if problem["id"] != req.problem_id:
+        raise HTTPException(status_code=409, detail="problem_id doesn't match active problem (stale hint).")
+
+    persona = load_persona(s["persona_id"])
+    system_prompt = build_chat_system_prompt(persona)
+    user_turn = (
+        f"The student asked for a hint on this problem:\n{problem['prompt_text']}\n\n"
+        "Give one concise, accurate next-step hint in character. Do not reveal the "
+        "final answer. If a reliable hint is not clear, ask a guiding question instead."
+    )
+    try:
+        hint = get_teaching_reply(system_prompt, [{"role": "user", "content": user_turn}])
+    except APIError as e:
+        raise HTTPException(status_code=502, detail=f"Hint generation failed: {e}") from e
+    if not hint:
+        raise HTTPException(status_code=502, detail="Hint generation returned an empty response.")
+    return HintResponse(hint=hint)
 
 
 @router.post("/submit", response_model=SubmitResponse)
@@ -84,8 +121,7 @@ def submit_answer(
         and problem["difficulty"] >= state.MASTERY_DIFFICULTY_THRESHOLD
         and not s["mastery_announced"]
     )
-    if is_topic_mastered:
-        s["mastery_announced"] = True
+    mastery_announced = s["mastery_announced"] or is_topic_mastered
 
     event_category = classify_event(
         verification_result=verification_result,
@@ -111,7 +147,7 @@ def submit_answer(
     )
 
     # Append user turn to history, then call LLM
-    history = s.get("conversation_history", [])
+    history = list(s.get("conversation_history", []))
     history.append({"role": "user", "content": user_turn})
 
     # Cap history to last HISTORY_MAX_TURNS * 2 messages (user+assistant pairs)
@@ -128,23 +164,34 @@ def submit_answer(
     history.append({"role": "assistant", "content": reaction})
 
     # ── Persist state ─────────────────────────────────────────────────────────
+    last_mistake_type = s["last_mistake_type"]
+    current_problem = s["current_problem"]
+    if not not_serious:
+        last_mistake_type = None if verification_result["correct"] else verification_result["mistake_type"]
+        current_problem = None
+
+    crud.update_session(
+        db,
+        session_id=req.session_id,
+        difficulty=new_difficulty,
+        streak=new_streak,
+        mastery_announced=mastery_announced,
+        last_mistake_type=last_mistake_type,
+        topic=s["topic"],
+        current_problem=current_problem,
+        conversation_history=history,
+        consecutive_wrong=new_consecutive_wrong,
+    )
+
     s["streak"] = new_streak
     s["consecutive_wrong"] = new_consecutive_wrong
     s["difficulty"] = new_difficulty
-    s["conversation_history"] = history  # memory only — never goes to DB
+    s["mastery_announced"] = mastery_announced
+    s["last_mistake_type"] = last_mistake_type
+    s["current_problem"] = current_problem
+    s["conversation_history"] = history
 
     if not not_serious:
-        s["last_mistake_type"] = None if verification_result["correct"] else verification_result["mistake_type"]
-        s["current_problem"] = None
-        crud.update_session(
-            db,
-            session_id=req.session_id,
-            difficulty=new_difficulty,
-            streak=new_streak,
-            mastery_announced=s["mastery_announced"],
-            last_mistake_type=s["last_mistake_type"],
-            topic=s["topic"],
-        )
         crud.log_attempt(
             db,
             session_id=req.session_id,

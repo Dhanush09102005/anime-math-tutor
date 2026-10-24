@@ -56,9 +56,9 @@ export default function AuthScreen({ onAuthenticated, loading, setLoading }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600
+          className="w-full px-4 py-2 rounded-lg bg-indigo-900 border border-indigo-600
                      text-slate-100 placeholder-slate-500 focus:outline-none
-                     focus:border-slate-400"
+                     focus:border-indigo-400"
         />
         <input
           type="password"
@@ -67,15 +67,15 @@ export default function AuthScreen({ onAuthenticated, loading, setLoading }) {
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={8}
-          className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600
+          className="w-full px-4 py-2 rounded-lg bg-indigo-900 border border-indigo-600
                      text-slate-100 placeholder-slate-500 focus:outline-none
-                     focus:border-slate-400"
+                     focus:border-indigo-400"
         />
         <button
           type="submit"
           disabled={loading}
-          className="w-full px-4 py-2 rounded-lg bg-slate-100 text-slate-900
-                     font-semibold hover:bg-white transition-colors disabled:opacity-50
+          className="w-full px-4 py-2 rounded-lg bg-indigo-600 text-white
+                     font-semibold hover:bg-indigo-500 active:scale-95 transition-all duration-150 disabled:opacity-50
                      disabled:cursor-not-allowed"
         >
           {loading ? "..." : mode === "login" ? "Log in" : "Register"}
@@ -83,16 +83,16 @@ export default function AuthScreen({ onAuthenticated, loading, setLoading }) {
       </form>
 
       <div className="w-full flex items-center gap-3">
-        <div className="flex-1 h-px bg-slate-700" />
+        <div className="flex-1 h-px bg-indigo-700" />
         <span className="text-slate-500 text-xs">or</span>
-        <div className="flex-1 h-px bg-slate-700" />
+        <div className="flex-1 h-px bg-indigo-700" />
       </div>
 
       <button
         onClick={handleGoogleClick}
         disabled={loading}
-        className="w-full px-4 py-2 rounded-lg border border-slate-600 text-slate-200
-                   hover:border-slate-400 transition-colors disabled:opacity-50
+        className="w-full px-4 py-2 rounded-lg border border-indigo-600 text-slate-200
+                   hover:border-indigo-400 transition-colors disabled:opacity-50
                    disabled:cursor-not-allowed"
       >
         Continue with Google

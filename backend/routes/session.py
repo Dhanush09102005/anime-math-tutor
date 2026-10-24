@@ -7,7 +7,13 @@ from db.database import get_db
 from db import crud
 from db.models import User
 from auth.dependencies import get_current_user
-from schemas import CreateSessionRequest, CreateSessionResponse, SessionHistoryItem
+from schemas import (
+    CreateSessionRequest,
+    CreateSessionResponse,
+    ProblemResponse,
+    SessionHistoryItem,
+    SessionResumeResponse,
+)
 
 router = APIRouter()
 
@@ -18,6 +24,39 @@ def list_sessions(
     db: Session = Depends(get_db),
 ):
     return crud.list_sessions_for_user(db, current_user.id)
+
+
+@router.get("/sessions/{session_id}/resume", response_model=SessionResumeResponse)
+def resume_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = get_session(session_id, current_user, db)
+    active_problem = session.get("current_problem")
+    problem_response = None
+    if active_problem is not None:
+        problem_response = ProblemResponse(
+            problem_id=active_problem["id"],
+            topic=active_problem["topic"],
+            difficulty=active_problem["difficulty"],
+            prompt_text=active_problem["prompt_text"],
+            answer_shape=active_problem["answer_shape"],
+            generation_mode=active_problem.get("generation_mode", "procedural"),
+        )
+
+    return SessionResumeResponse(
+        session_id=session_id,
+        persona_id=session["persona_id"],
+        mode=session["mode"],
+        topic=session["topic"],
+        difficulty=session["difficulty"],
+        streak=session["streak"],
+        active_problem=problem_response,
+        conversation_history=(
+            session["conversation_history"] if session["mode"] == "chat" else []
+        ),
+    )
 
 
 def get_session(session_id: str, current_user: User, db: Session) -> dict:
@@ -79,6 +118,7 @@ def create_session(
         persona_id=s["persona_id"],
         topic=s["topic"],
         difficulty=s["difficulty"],
+        mode=s["mode"],
     )
 
     return CreateSessionResponse(
@@ -88,3 +128,13 @@ def create_session(
         difficulty=s["difficulty"],
         mode=s["mode"],
     )
+
+@router.get("/sessions/{session_id}/attempts", response_model=list)
+def get_session_attempts(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Ownership check — reuse get_session which already enforces it
+    get_session(session_id, current_user, db)
+    return crud.get_attempts_for_session(db, session_id)

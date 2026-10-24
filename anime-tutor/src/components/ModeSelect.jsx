@@ -43,9 +43,9 @@ export default function ModeSelect({ onSelect, onBack, loading }) {
             key={m.id}
             onClick={() => onSelect(m.id)}
             disabled={loading}
-            className="relative flex flex-col gap-2 rounded-xl border border-slate-600 bg-slate-800
+            className="relative flex flex-col gap-2 rounded-xl border border-indigo-600 bg-indigo-900
                        px-6 py-6 text-left transition-all duration-200
-                       hover:border-slate-400 hover:scale-[1.02] cursor-pointer
+                       hover:border-indigo-400 hover:scale-[1.02] cursor-pointer
                        disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="text-slate-100 text-lg font-semibold">{m.name}</div>
@@ -53,7 +53,7 @@ export default function ModeSelect({ onSelect, onBack, loading }) {
             <div className="text-slate-500 text-sm leading-relaxed mt-1">{m.description}</div>
 
             {loading && (
-              <div className="absolute inset-0 bg-slate-900/60 rounded-xl flex items-center justify-center">
+              <div className="absolute inset-0 bg-violet-950/60 rounded-xl flex items-center justify-center">
                 <span className="text-slate-300 text-sm animate-pulse">Starting...</span>
               </div>
             )}

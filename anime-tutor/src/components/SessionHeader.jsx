@@ -17,7 +17,7 @@ export default function SessionHeader({ personaId, streak, difficulty, onQuit, u
   const displayTitle = character?.title ?? "";
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-slate-800 border border-slate-700">
+    <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-indigo-900 border border-indigo-700">
       <div className="flex items-center gap-2">
         <span className="text-slate-400 text-xs uppercase tracking-widest">
           {displayTitle || "Sensei"}
@@ -36,19 +36,19 @@ export default function SessionHeader({ personaId, streak, difficulty, onQuit, u
         </div>
         <button
           onClick={onQuit}
-          className="ml-2 text-slate-500 hover:text-red-400 text-xs underline
-                     underline-offset-2 transition-colors"
+          className="pill-btn ml-2 text-slate-400 bg-violet-950 border border-indigo-700
+                     hover:text-red-300 hover:border-red-800 hover:bg-red-950/30"
         >
-          quit
+          Quit
         </button>
         {onLogout && (
           <button
             onClick={onLogout}
             title={userEmail ?? undefined}
-            className="text-slate-600 hover:text-slate-300 text-xs underline
-                       underline-offset-2 transition-colors"
+            className="pill-btn text-slate-500 bg-violet-950 border border-indigo-700
+                       hover:text-slate-100 hover:border-indigo-400"
           >
-            log out
+            Log out
           </button>
         )}
       </div>

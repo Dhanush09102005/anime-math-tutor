@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:8000";
+export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 async function request(path, body, method = "POST") {
   const options = {
@@ -40,6 +40,10 @@ export function fetchSessionHistory() {
   return request("/sessions", undefined, "GET");
 }
 
+export function fetchSessionResume(sessionId) {
+  return request(`/sessions/${sessionId}/resume`, undefined, "GET");
+}
+
 // GET /auth/me — used on app load to check "is there already a valid auth
 // cookie" (handles page refresh, and the redirect back from Google OAuth).
 // Throws (via request()'s !res.ok check) if not authenticated — caller
@@ -52,6 +56,41 @@ export function getCurrentUser() {
 // URL the caller navigates the browser to directly (window.location.href = ...).
 export function googleLoginUrl() {
   return `${BASE_URL}/auth/oauth/google/login`;
+}
+
+// PATCH /auth/profile — display name only (multipart form, matches the
+// avatar upload's form-data style so both profile endpoints are consistent).
+export async function updateProfile({ displayName }) {
+  const form = new FormData();
+  if (displayName !== undefined) form.append("display_name", displayName);
+
+  const res = await fetch(`${BASE_URL}/auth/profile`, {
+    method: "PATCH",
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+// POST /auth/profile/avatar — multipart file upload
+export async function uploadAvatar(file) {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${BASE_URL}/auth/profile/avatar`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed: ${res.status}`);
+  }
+  return res.json();
 }
 
 // ── Session / problem / submit (unchanged logic, now cookie-authenticated) ───
@@ -71,7 +110,7 @@ export function fetchProblem(sessionId, topic = null) {
   return request("/problem", { session_id: sessionId, topic });
 }
 
-// POST /submit — submits an answer (or give_up=true for a hint)
+// POST /submit — submits an answer
 export function submitAnswer(sessionId, problemId, answer, giveUp = false) {
   return request("/submit", {
     session_id: sessionId,
@@ -79,6 +118,11 @@ export function submitAnswer(sessionId, problemId, answer, giveUp = false) {
     answer: giveUp ? null : answer,
     give_up: giveUp,
   });
+}
+
+// POST /hint — asks for a non-revealing hint without submitting the answer
+export function requestHint(sessionId, problemId) {
+  return request("/hint", { session_id: sessionId, problem_id: problemId });
 }
 
 // POST /chat — v2.0.0 teaching mode. Accepts text + optional file (image/PDF).
@@ -98,5 +142,51 @@ export async function sendChatMessage(sessionId, message, file = null) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `Request failed: ${res.status}`);
   }
+  return res.json();
+}
+
+// GET /sessions/:id/attempts — individual attempt detail for a session
+export async function fetchSessionAttempts(sessionId) {
+  const res = await fetch(`${BASE_URL}/sessions/${sessionId}/attempts`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+// POST /auth/change-password
+export function changePassword(currentPassword, newPassword) {
+  return request("/auth/change-password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+}
+
+// DELETE /auth/account
+export async function deleteAccount() {
+  const res = await fetch(`${BASE_URL}/auth/account`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed: ${res.status}`);
+  }
+}
+
+// GET /analytics — per-topic accuracy, attempt counts, best difficulty
+export async function fetchAnalytics() {
+  const res = await fetch(`${BASE_URL}/analytics`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  return res.json();
+}
+
+// GET /syllabus/progress — mastery status per topic
+export async function fetchSyllabusProgress() {
+  const res = await fetch(`${BASE_URL}/syllabus/progress`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json();
 }

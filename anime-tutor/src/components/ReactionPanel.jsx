@@ -29,22 +29,29 @@ function TypewriterText({ text }) {
 }
 
 export default function ReactionPanel({ result, onNext, loading }) {
-  const isCorrect    = result?.correct;
+  const isNotSerious = result?.event_category === "not_serious";
+  const isCorrect = result?.correct && !isNotSerious;
 
-  const borderColor = isCorrect ? "border-green-700" : "border-red-800";
-  const badge = isCorrect
-    ? { text: "Correct", style: "bg-green-900/50 text-green-300" }
-    : { text: "Wrong",   style: "bg-red-900/50 text-red-300"   };
+  const borderColor = isNotSerious
+    ? "border-amber-700"
+    : isCorrect
+      ? "border-green-700"
+      : "border-red-800";
+  const badge = isNotSerious
+    ? { text: "Try again", style: "bg-amber-900/50 text-amber-300" }
+    : isCorrect
+      ? { text: "Correct", style: "bg-green-900/50 text-green-300" }
+      : { text: "Wrong", style: "bg-red-900/50 text-red-300" };
 
   return (
-    <div className={`flex flex-col gap-4 px-6 py-5 rounded-lg bg-slate-800 border ${borderColor}`}>
+    <div className={`flex flex-col gap-4 px-6 py-5 rounded-lg bg-indigo-900 border ${borderColor}`}>
 
       {/* Badge + answer reveal */}
       <div className="flex items-center justify-between">
         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${badge.style}`}>
           {badge.text}
         </span>
-        {!isCorrect && result?.correct_answer && (
+        {!isCorrect && !isNotSerious && result?.correct_answer && (
           <span className="text-slate-400 text-xs font-mono">
             Answer: <span className="text-slate-200">{result.correct_answer}</span>
           </span>
@@ -60,11 +67,11 @@ export default function ReactionPanel({ result, onNext, loading }) {
       <button
         onClick={onNext}
         disabled={loading}
-        className="mt-1 self-end px-5 py-2 rounded bg-slate-700 hover:bg-slate-600
+        className="mt-1 self-end px-5 py-2 rounded bg-indigo-700 hover:bg-indigo-600
                    text-slate-100 font-semibold text-sm transition-colors
                    disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        {loading ? "Loading..." : "Next mission →"}
+        {loading ? "Loading..." : isNotSerious ? "Try again →" : "Next mission →"}
       </button>
     </div>
   );

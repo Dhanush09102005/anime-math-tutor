@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 // Topic catalogue for v1.2.0. Every topic below now has a working generator
 // in math_engine/generate.py's TOPIC_GENERATORS registry.
 // `id` must match the topic string that registry expects — keep these two
@@ -61,7 +63,15 @@ const TOPIC_CATEGORIES = [
   },
 ];
 
-export default function TopicSelect({ onSelect, onBack, loading }) {
+export default function TopicSelect({ onSelect, onBack, loading, preSelectedTopic = null }) {
+  // When arriving from SyllabusPage "Practice →", skip the picker and
+  // auto-select the topic immediately. A brief render still happens so the
+  // user sees which topic was chosen before the session starts.
+  useEffect(() => {
+    if (preSelectedTopic) {
+      onSelect(preSelectedTopic);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="flex flex-col items-center gap-10 w-full max-w-3xl">
 
@@ -99,21 +109,23 @@ export default function TopicSelect({ onSelect, onBack, loading }) {
                     relative rounded-xl border px-4 py-3 text-left
                     transition-all duration-200
                     ${t.active
-                      ? "border-slate-600 bg-slate-800 hover:border-slate-400 hover:scale-[1.02] cursor-pointer"
-                      : "border-slate-800 bg-slate-900 opacity-40 cursor-not-allowed"
+                      ? t.id === preSelectedTopic
+                        ? "border-yellow-500 bg-indigo-800 scale-[1.02] cursor-pointer"
+                        : "border-indigo-600 bg-indigo-900 hover:border-indigo-400 hover:scale-[1.02] cursor-pointer"
+                      : "border-indigo-900 bg-violet-950 opacity-40 cursor-not-allowed"
                     }
                   `}
                 >
                   <div className="text-slate-100 text-sm font-semibold">{t.name}</div>
 
                   {loading && t.active && (
-                    <div className="absolute inset-0 bg-slate-900/60 rounded-xl flex items-center justify-center">
+                    <div className="absolute inset-0 bg-violet-950/60 rounded-xl flex items-center justify-center">
                       <span className="text-slate-300 text-xs animate-pulse">Loading...</span>
                     </div>
                   )}
 
                   {!t.active && (
-                    <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-700 text-slate-400 text-[10px]">
+                    <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-indigo-700 text-slate-400 text-[10px]">
                       Soon
                     </div>
                   )}

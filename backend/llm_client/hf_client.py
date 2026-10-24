@@ -1,4 +1,5 @@
 import os
+import json
 from openai import OpenAI, BadRequestError
 from dotenv import load_dotenv
 
@@ -73,7 +74,42 @@ def get_teaching_reply(system_prompt: str, history: list[dict]) -> str:
         extra_body={"reasoning_format": "hidden"},
     )
 
-    return completion.choices[0].message.content.strip()
+    content = completion.choices[0].message.content
+    return content.strip() if content else ""
+
+
+def propose_problem_parameters(topic: str, difficulty: int, instructions: str) -> dict:
+    """Ask the model for bounded parameters; SymPy still computes the answer."""
+    completion = client.chat.completions.create(
+        model=MODEL_ID,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Propose parameters for a math problem. Follow the requested JSON "
+                    "schema exactly. Do not include an answer or explanatory text."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Topic: {topic}\nDifficulty: {difficulty}\n"
+                    f"Required JSON: {instructions}"
+                ),
+            },
+        ],
+        response_format={"type": "json_object"},
+        max_tokens=120,
+        temperature=0.8,
+        extra_body={"reasoning_format": "hidden"},
+    )
+    content = completion.choices[0].message.content
+    if not content:
+        raise ValueError("The problem proposal model returned an empty response.")
+    proposal = json.loads(content)
+    if not isinstance(proposal, dict):
+        raise ValueError("The problem proposal must be a JSON object.")
+    return proposal
 
 
 def get_chat_completion(messages: list[dict], tools: list[dict] | None = None):

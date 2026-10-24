@@ -55,14 +55,14 @@ export default function ChatWindow({ messages, onSend, loading }) {
               {m.fileName && (
                 <span className="text-xs text-slate-400 px-2">📎 {m.fileName}</span>
               )}
-              <div className="px-4 py-2 rounded-lg bg-slate-700 text-slate-100 text-sm">
+              <div className="px-4 py-2 rounded-lg bg-indigo-700 text-slate-100 text-sm">
                 {m.content || <span className="italic text-slate-400">(file only)</span>}
               </div>
             </div>
           ) : (
             <div
               key={i}
-              className="self-start max-w-[75%] px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm leading-relaxed chat-markdown"
+              className="self-start max-w-[75%] px-4 py-2 rounded-lg bg-indigo-900 border border-indigo-700 text-slate-200 text-sm leading-relaxed chat-markdown"
             >
               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                 {renderMath(m.content)}
@@ -72,7 +72,7 @@ export default function ChatWindow({ messages, onSend, loading }) {
         )}
 
         {loading && (
-          <div className="self-start px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-500 text-sm">
+          <div className="self-start px-4 py-2 rounded-lg bg-indigo-900 border border-indigo-700 text-slate-500 text-sm">
             <span className="animate-pulse">...</span>
           </div>
         )}
@@ -80,7 +80,7 @@ export default function ChatWindow({ messages, onSend, loading }) {
 
       {/* File preview chip */}
       {file && (
-        <div className="flex items-center gap-2 px-3 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 text-xs shrink-0">
+        <div className="flex items-center gap-2 px-3 py-1 rounded bg-indigo-900 border border-indigo-700 text-slate-300 text-xs shrink-0">
           <span>📎 {file.name}</span>
           <button
             type="button"
@@ -101,8 +101,8 @@ export default function ChatWindow({ messages, onSend, loading }) {
           onClick={() => fileInputRef.current?.click()}
           disabled={loading}
           title="Upload image or PDF"
-          className="px-3 py-2 rounded bg-slate-800 border border-slate-600 text-slate-400
-                     hover:text-slate-200 hover:border-slate-400 transition-colors
+          className="px-3 py-2 rounded bg-indigo-900 border border-indigo-600 text-slate-400
+                     hover:text-slate-200 hover:border-indigo-400 transition-colors
                      disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
         >
           📎
@@ -121,15 +121,15 @@ export default function ChatWindow({ messages, onSend, loading }) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type a problem or question..."
           disabled={loading}
-          className="flex-1 px-4 py-2 rounded bg-slate-900 border border-slate-600
+          className="flex-1 px-4 py-2 rounded bg-violet-950 border border-indigo-600
                      text-slate-100 placeholder-slate-500
-                     focus:outline-none focus:border-slate-400
+                     focus:outline-none focus:border-indigo-400
                      disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={loading || (!input.trim() && !file)}
-          className="px-5 py-2 rounded bg-slate-600 hover:bg-slate-500
+          className="px-5 py-2 rounded bg-indigo-600 hover:bg-indigo-500
                      text-slate-100 font-semibold transition-colors
                      disabled:opacity-40 disabled:cursor-not-allowed"
         >

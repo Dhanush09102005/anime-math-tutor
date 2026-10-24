@@ -1,6 +1,6 @@
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel
+from typing import Literal, Optional
+from pydantic import BaseModel, Field
 
 
 class AnswerShape(str, Enum):
@@ -34,6 +34,13 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     id: str
     email: str
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    has_password: bool = False
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: Optional[str] = None
 
 
 # ── Session / problem / submit / chat (unchanged from v2.0.0) ──────────────────
@@ -63,6 +70,22 @@ class SessionHistoryItem(BaseModel):
     created_at: str
 
 
+class AttemptItem(BaseModel):
+    id: int
+    problem_id: str
+    topic: str
+    difficulty: int
+    correct: bool
+    mistake_type: Optional[str]
+    event_category: str
+    timestamp: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class ProblemRequest(BaseModel):
     session_id: str
     topic: Optional[str] = None
@@ -74,6 +97,23 @@ class ProblemResponse(BaseModel):
     difficulty: int
     prompt_text: str
     answer_shape: AnswerShape
+    generation_mode: str = "procedural"
+
+
+class ChatHistoryMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class SessionResumeResponse(BaseModel):
+    session_id: str
+    persona_id: str
+    mode: str
+    topic: str
+    difficulty: int
+    streak: int
+    active_problem: Optional[ProblemResponse] = None
+    conversation_history: list[ChatHistoryMessage] = Field(default_factory=list)
 
 
 class SubmitRequest(BaseModel):
@@ -91,6 +131,15 @@ class SubmitResponse(BaseModel):
     reaction: str
     streak: int
     difficulty: int
+
+
+class HintRequest(BaseModel):
+    session_id: str
+    problem_id: str
+
+
+class HintResponse(BaseModel):
+    hint: str
 
 
 class ChatRequest(BaseModel):

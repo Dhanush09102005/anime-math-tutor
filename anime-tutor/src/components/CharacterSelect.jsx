@@ -27,13 +27,13 @@ export default function CharacterSelect({ onSelect, loading }) {
                 relative flex flex-col rounded-xl border overflow-hidden text-left
                 transition-all duration-200
                 ${c.active
-                  ? "border-slate-600 bg-slate-800 hover:border-slate-400 hover:scale-[1.02] cursor-pointer"
-                  : "border-slate-800 bg-slate-900 opacity-40 cursor-not-allowed"
+                  ? "border-indigo-600 bg-indigo-900 hover:border-indigo-400 hover:scale-[1.02] cursor-pointer"
+                  : "border-indigo-900 bg-violet-950 opacity-40 cursor-not-allowed"
                 }
               `}
             >
               {/* Card image area */}
-              <div className="w-full h-44 bg-slate-700 flex items-center justify-center overflow-hidden">
+              <div className="w-full h-44 bg-indigo-700 flex items-center justify-center overflow-hidden">
                 {cardImage ? (
                   <img
                     src={cardImage}
@@ -56,14 +56,14 @@ export default function CharacterSelect({ onSelect, loading }) {
 
               {/* Loading overlay */}
               {loading && c.active && (
-                <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
+                <div className="absolute inset-0 bg-violet-950/60 flex items-center justify-center">
                   <span className="text-slate-300 text-sm animate-pulse">Starting session...</span>
                 </div>
               )}
 
               {/* Coming soon badge */}
               {!c.active && (
-                <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-700 text-slate-400 text-xs">
+                <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-indigo-700 text-slate-400 text-xs">
                   Soon
                 </div>
               )}

@@ -1,7 +1,15 @@
-from fastapi import APIRouter, Depends
+import json
+
+from fastapi import APIRouter, Depends, HTTPException
+from openai import APIError
 from sqlalchemy.orm import Session
 
-from math_engine.generate import generate_problem
+from math_engine.generate import (
+    HYBRID_PROPOSAL_INSTRUCTIONS,
+    generate_problem,
+    generate_problem_from_proposal,
+)
+from llm_client.hf_client import propose_problem_parameters
 from routes.session import get_session
 from db.database import get_db
 from db import crud
@@ -22,6 +30,7 @@ def get_problem(
 
     if req.topic:
         s["topic"] = req.topic
+        s["current_problem"] = None
         # Persist the topic change so it survives a restart
         crud.update_session(
             db,
@@ -31,10 +40,41 @@ def get_problem(
             mastery_announced=s["mastery_announced"],
             last_mistake_type=s["last_mistake_type"],
             topic=s["topic"],
+            current_problem=None,
+            conversation_history=s["conversation_history"],
+            consecutive_wrong=s["consecutive_wrong"],
         )
 
-    problem = generate_problem(s["topic"], s["difficulty"])
-    s["current_problem"] = problem  # canonical_answer/equation stay server-side only
+    generation_mode = "procedural"
+    if s["topic"] in HYBRID_PROPOSAL_INSTRUCTIONS:
+        try:
+            proposal = propose_problem_parameters(
+                s["topic"],
+                s["difficulty"],
+                HYBRID_PROPOSAL_INSTRUCTIONS[s["topic"]],
+            )
+            problem = generate_problem_from_proposal(s["topic"], s["difficulty"], proposal)
+            generation_mode = "hybrid"
+        except (ValueError, KeyError, TypeError, json.JSONDecodeError) as e:
+            raise HTTPException(status_code=502, detail=f"Invalid AI problem proposal: {e}") from e
+        except APIError as e:
+            raise HTTPException(status_code=502, detail=f"AI problem generation failed: {e}") from e
+    else:
+        problem = generate_problem(s["topic"], s["difficulty"])
+    problem["generation_mode"] = generation_mode
+    crud.update_session(
+        db,
+        session_id=req.session_id,
+        difficulty=s["difficulty"],
+        streak=s["streak"],
+        mastery_announced=s["mastery_announced"],
+        last_mistake_type=s["last_mistake_type"],
+        topic=s["topic"],
+        current_problem=problem,
+        conversation_history=s["conversation_history"],
+        consecutive_wrong=s["consecutive_wrong"],
+    )
+    s["current_problem"] = problem  # canonical_answer stays server-side only
 
     return ProblemResponse(
         problem_id=problem["id"],
@@ -42,4 +82,5 @@ def get_problem(
         difficulty=problem["difficulty"],
         prompt_text=problem["prompt_text"],
         answer_shape=problem["answer_shape"],
+        generation_mode=generation_mode,
     )
