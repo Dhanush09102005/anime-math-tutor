@@ -33,6 +33,7 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       ENV: production
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
     volumes:
       # Persist uploaded avatars across container rebuilds.
       # Without this, every `docker compose up --build` wipes all uploaded
