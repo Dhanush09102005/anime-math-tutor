@@ -4,6 +4,10 @@ An adaptive math tutor where anime characters teach you — in character. Pick a
 
 ---
 
+# Deployed Link
+
+   http://13.201.188.110
+
 ## Demo
 
 > Select a character → pick a topic → either drill problems back-to-back, or just talk to them — ask questions, go on tangents, ask for a problem whenever you want one
