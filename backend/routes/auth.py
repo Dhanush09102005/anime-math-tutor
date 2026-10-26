@@ -60,7 +60,7 @@ def _set_auth_cookie(response: Response, token: str) -> None:
         value=token,
         httponly=True,
         samesite="lax",
-        secure=os.environ.get("ENV") == "production",  # requires https in prod; localhost dev stays False
+        secure=os.environ.get("COOKIE_SECURE", str(os.environ.get("ENV") == "production")).lower() == "true",
         max_age=COOKIE_MAX_AGE_SECONDS,
     )
 
