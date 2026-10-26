@@ -12,7 +12,17 @@ import routes.chat as chat_route
 import routes.session as session_route
 import routes.submit as submit_route
 from routes.session import get_session
-from schemas import AnswerShape, SubmitRequest
+from auth.security import hash_password, verify_password
+from schemas import AnswerShape, CreateSessionRequest, SessionHistoryItem, SubmitRequest
+
+
+def test_password_hashing_supports_registration_and_login():
+    password = "test-password-123"
+    hashed_password = hash_password(password)
+
+    assert hashed_password != password
+    assert verify_password(password, hashed_password)
+    assert not verify_password("wrong-password", hashed_password)
 
 
 @pytest.mark.parametrize(
@@ -259,6 +269,70 @@ def test_resume_endpoint_restores_chat_messages(monkeypatch):
     )
 
     assert [message.model_dump() for message in response.conversation_history] == history
+
+
+def test_session_history_items_include_mode():
+    created_at = "2026-10-26T12:00:00+00:00"
+
+    class Query:
+        def outerjoin(self, *_args):
+            return self
+
+        def filter(self, *_args):
+            return self
+
+        def group_by(self, *_args):
+            return self
+
+        def order_by(self, *_args):
+            return self
+
+        def all(self):
+            return [
+                (
+                    SimpleNamespace(
+                        session_id="chat-1",
+                        persona_id="kakashi",
+                        topic="calculus",
+                        mode="chat",
+                        difficulty=1,
+                        streak=0,
+                        created_at=SimpleNamespace(isoformat=lambda: created_at),
+                    ),
+                    0,
+                    0,
+                )
+            ]
+
+    class Database:
+        def query(self, *_args):
+            return Query()
+
+    history = crud.list_sessions_for_user(Database(), user_id=object())
+    item = SessionHistoryItem(**history[0])
+
+    assert item.mode == "chat"
+
+
+@pytest.mark.parametrize(
+    ("topic", "expected_topic"),
+    [("numbers", "numbers"), (None, "general")],
+)
+def test_chat_session_uses_syllabus_topic_when_provided(
+    monkeypatch,
+    topic,
+    expected_topic,
+):
+    monkeypatch.setattr(state, "SESSIONS", {})
+    monkeypatch.setattr(session_route.crud, "create_session", lambda *_args, **_kwargs: None)
+
+    response = session_route.create_session(
+        CreateSessionRequest(persona_id="kakashi", mode="chat", topic=topic),
+        current_user=SimpleNamespace(id="user-1"),
+        db=object(),
+    )
+
+    assert state.SESSIONS[response.session_id]["topic"] == expected_topic
 
 
 @pytest.mark.parametrize(

@@ -16,7 +16,7 @@ from authlib.integrations.starlette_client import OAuth
 from db.database import get_db
 from db import crud
 from auth.security import hash_password, verify_password, create_access_token
-from auth.dependencies import get_current_user, COOKIE_NAME
+from auth.dependencies import get_current_user, is_admin, COOKIE_NAME
 from schemas import RegisterRequest, LoginRequest, UserResponse, ChangePasswordRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -50,6 +50,7 @@ def _user_response(user) -> UserResponse:
         display_name=user.display_name,
         avatar_url=user.avatar_url,
         has_password=user.hashed_password is not None,
+        is_admin=is_admin(user),
     )
 
 
@@ -127,26 +128,31 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     userinfo = token["userinfo"]
     email = userinfo["email"]
     google_id = userinfo["sub"]
+    frontend_url = (os.environ.get("FRONTEND_URL") or "http://localhost").rstrip("/")
+
+    if userinfo.get("email_verified") is not True:
+        return RedirectResponse(
+            url=f"{frontend_url}/?auth_error=google_email_unverified"
+        )
 
     user = crud.get_user_by_oauth(db, "google", google_id)
     if user is None:
         existing = crud.get_user_by_email(db, email)
-        if existing is not None:
-            # An email/password account already owns this email, signing in
-            # via Google for the first time. NOT auto-linked — silently
-            # merging accounts on email match has phishing implications
-            # (an attacker who controls a Google account with a victim's
-            # email could otherwise hijack the existing account). Left as
-            # an explicit open decision rather than resolved silently here.
-            raise HTTPException(
-                status_code=409,
-                detail="An account with this email already exists. Log in with your password instead.",
+        if existing is None:
+            return RedirectResponse(
+                url=f"{frontend_url}/?auth_error=google_registration_disabled"
             )
-        user = crud.create_user(db, email=email, oauth_provider="google", oauth_id=google_id)
+        if existing.oauth_provider or existing.oauth_id:
+            return RedirectResponse(
+                url=f"{frontend_url}/?auth_error=google_account_already_linked"
+            )
+
+        # Google must confirm ownership of the same email before its identity
+        # can be linked to an account created through normal registration.
+        user = crud.link_user_oauth(db, existing, "google", google_id)
 
     access_token = create_access_token({"sub": str(user.id)})
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-    response = RedirectResponse(url=frontend_url)
+    response = RedirectResponse(url=f"{frontend_url}/dashboard")
     _set_auth_cookie(response, access_token)
     return response
 

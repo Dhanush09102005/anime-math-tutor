@@ -70,6 +70,40 @@ class SessionModel(Base):
     )
 
 
+class QuestionPaper(Base):
+    __tablename__ = "question_papers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False, default="")
+    topic = Column(String, nullable=False)
+    questions = Column(JSONB, nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    attempts = relationship(
+        "PaperAttempt",
+        back_populates="paper",
+        cascade="all, delete-orphan",
+    )
+
+
+class PaperAttempt(Base):
+    __tablename__ = "paper_attempts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("question_papers.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    answers = Column(JSONB, nullable=False, default=list)
+    score = Column(Integer, nullable=True)
+    correct_count = Column(Integer, nullable=True)
+    started_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    paper = relationship("QuestionPaper", back_populates="attempts")
+    user = relationship("User")
+
+
 class Attempt(Base):
     __tablename__ = "attempts"
 

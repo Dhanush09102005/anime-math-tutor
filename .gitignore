@@ -29,5 +29,20 @@ CONTEXT.md
 anime-tutor/src/assets/characters/
 anime-tutor/src/assets/kakashi/
 
-# Root-level .env for docker-compose
-.env
+# Environment files. Keep the checked-in template, never real env files.
+.env*
+!.env.example
+
+# Private keys and credential bundles
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Cloud/provider credentials
+.aws/
+credentials
+credentials.*
+tutor-key.pem

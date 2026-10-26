@@ -12,7 +12,7 @@ function renderMath(text) {
     .replaceAll("\\)", "$");
 }
 
-export default function ChatWindow({ messages, onSend, loading }) {
+export default function ChatWindow({ messages, onSend, loading, topic }) {
   const [input, setInput]   = useState("");
   const [file, setFile]     = useState(null);   // File object or null
   const scrollRef           = useRef(null);
@@ -45,7 +45,14 @@ export default function ChatWindow({ messages, onSend, loading }) {
       >
         {messages.length === 0 && (
           <div className="flex-1 flex items-center justify-center text-slate-500 text-sm text-center px-8">
-            Type a problem, paste a question, or upload an image or PDF — your sensei will walk you through it.
+            {topic && topic !== "general" ? (
+              <span>
+                Syllabus focus: <span className="text-slate-300">{topic.replaceAll("_", " ")}</span>.
+                Ask a question or share a problem, and your sensei will help you work through it.
+              </span>
+            ) : (
+              "Type a problem, paste a question, or upload an image or PDF — your sensei will walk you through it."
+            )}
           </div>
         )}
 

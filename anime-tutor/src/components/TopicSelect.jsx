@@ -63,6 +63,11 @@ const TOPIC_CATEGORIES = [
   },
 ];
 
+function topicName(topicId) {
+  return TOPIC_CATEGORIES.flatMap((category) => category.topics)
+    .find((topic) => topic.id === topicId)?.name ?? topicId.replaceAll("_", " ");
+}
+
 export default function TopicSelect({ onSelect, onBack, loading, preSelectedTopic = null }) {
   // When arriving from SyllabusPage "Practice →", skip the picker and
   // auto-select the topic immediately. A brief render still happens so the
@@ -86,10 +91,12 @@ export default function TopicSelect({ onSelect, onBack, loading, preSelectedTopi
 
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-wide text-slate-100">
-          Choose your mission
+          {preSelectedTopic ? "Starting syllabus practice" : "Choose your mission"}
         </h1>
         <p className="mt-2 text-slate-400 text-sm">
-          Pick a topic. More get added every version.
+          {preSelectedTopic
+            ? `${topicName(preSelectedTopic)} is selected and will start automatically.`
+            : "Pick a topic. More get added every version."}
         </p>
       </div>
 

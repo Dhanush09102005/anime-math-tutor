@@ -7,6 +7,7 @@ chat.py should have this now, since sessions are user-scoped.
 """
 
 import uuid
+import os
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -37,3 +38,18 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
         raise HTTPException(status_code=401, detail="User not found")
 
     return user
+
+
+def is_admin(user: User) -> bool:
+    admin_emails = {
+        email.strip().casefold()
+        for email in os.environ.get("ADMIN_EMAILS", "").split(",")
+        if email.strip()
+    }
+    return user.email.casefold() in admin_emails
+
+
+def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Administrator access required.")
+    return current_user

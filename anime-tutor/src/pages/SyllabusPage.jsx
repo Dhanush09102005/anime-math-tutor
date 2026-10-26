@@ -39,7 +39,7 @@ const CURRICULUM = [
 
 const CATEGORIES = [...new Set(CURRICULUM.map(t => t.category))];
 
-function TopicCard({ topic, status, locked, onPractice }) {
+function TopicCard({ topic, status, locked, onFindPapers }) {
   const { started, mastered, accuracy, best_difficulty } = status ?? {};
 
   const borderColor = mastered  ? "border-green-700"  :
@@ -92,10 +92,10 @@ function TopicCard({ topic, status, locked, onPractice }) {
         </span>
         {!locked && (
           <button
-            onClick={() => onPractice(topic.id)}
+            onClick={() => onFindPapers(topic.id)}
             className="pill-btn bg-indigo-700 hover:bg-indigo-600 text-slate-200"
           >
-            Practice →
+            Find papers →
           </button>
         )}
       </div>
@@ -122,9 +122,8 @@ export default function SyllabusPage() {
     return topic.prerequisites.some(prereqId => !progress[prereqId]?.started);
   }
 
-  function handlePractice(topicId) {
-    // Navigate home and pass the topic as state so the app can pick it up
-    navigate("/", { state: { startTopic: topicId } });
+  function handleFindPapers(topicId) {
+    navigate("/question-banks", { state: { topic: topicId } });
   }
 
   const totalTopics   = CURRICULUM.length;
@@ -140,6 +139,11 @@ export default function SyllabusPage() {
         <div>
           <p className="text-slate-500 text-xs uppercase tracking-widest">Your curriculum</p>
           <h1 className="mt-1 text-3xl font-bold text-slate-100">Syllabus</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
+            This view tracks topic progress from Mentor Quick Practice. Teacher-made papers
+            are in Question Banks; choose <span className="text-slate-200">Find papers</span>
+            to see papers for a topic.
+          </p>
         </div>
 
         {loading && <p className="text-slate-500 text-sm animate-pulse">Loading progress...</p>}
@@ -180,7 +184,7 @@ export default function SyllabusPage() {
                       topic={topic}
                       status={progress[topic.id]}
                       locked={isLocked(topic)}
-                      onPractice={handlePractice}
+                      onFindPapers={handleFindPapers}
                     />
                   ))}
                 </div>

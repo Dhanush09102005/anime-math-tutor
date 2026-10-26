@@ -20,6 +20,9 @@ import TermsPage from "./pages/TermsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import DashboardPage from "./pages/DashboardPage";
 import SyllabusPage from "./pages/SyllabusPage";
+import QuestionBanksPage from "./pages/QuestionBanksPage";
+import PaperAttemptPage from "./pages/PaperAttemptPage";
+import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
 import Layout from "./pages/Layout";
 import TopNav from "./components/TopNav";
 import PageTransition from "./components/PageTransition";
@@ -36,6 +39,7 @@ export default function App() {
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [selectedMode, setSelectedMode]       = useState(null);
   const [pendingTopic, setPendingTopic]       = useState(null); // from SyllabusPage startTopic
+  const [sessionTopic, setSessionTopic]       = useState(null);
   const [sessionId, setSessionId]     = useState(null);
   const [problem, setProblem]         = useState(null);
   const [result, setResult]           = useState(null);
@@ -57,7 +61,12 @@ export default function App() {
         if (cancelled) return;
         setCurrentUser(user);
 
-        const savedSessionId = sessionStorage.getItem(ACTIVE_SESSION_KEY);
+        const startTopic = location.state?.startTopic ?? null;
+        const savedSessionId = location.state?.resumeSessionId
+          ?? (startTopic ? null : sessionStorage.getItem(ACTIVE_SESSION_KEY));
+        if (startTopic) {
+          sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+        }
         if (savedSessionId) {
           try {
             const session = await fetchSessionResume(savedSessionId);
@@ -66,6 +75,7 @@ export default function App() {
             setSessionId(session.session_id);
             setSelectedPersona(session.persona_id);
             setSelectedMode(session.mode);
+            setSessionTopic(session.topic);
             setChatStreak(session.streak);
             setChatDifficulty(session.difficulty);
             setCurrentMood("default");
@@ -96,12 +106,9 @@ export default function App() {
           }
         }
 
-        const startTopic = location.state?.startTopic ?? null;
         if (startTopic) {
           setPendingTopic(startTopic);
           setPhase("select");
-        } else if (location.pathname === "/" || location.pathname === "") {
-          navigate("/dashboard", { replace: true });
         } else {
           setPhase("select");
         }
@@ -154,8 +161,10 @@ export default function App() {
     }
     setLoading(true);
     try {
-      const session = await createSession(selectedPersona, mode);
+      const session = await createSession(selectedPersona, mode, pendingTopic);
       setSessionId(session.session_id);
+      setSessionTopic(session.topic);
+      setPendingTopic(null);
       sessionStorage.setItem(ACTIVE_SESSION_KEY, session.session_id);
       setCurrentMood("default");
       setChatMessages([]);
@@ -175,6 +184,7 @@ export default function App() {
     try {
       const session = await createSession(selectedPersona, selectedMode, topicId);
       setSessionId(session.session_id);
+      setSessionTopic(session.topic);
       sessionStorage.setItem(ACTIVE_SESSION_KEY, session.session_id);
       setCurrentMood("default");
       const prob = await fetchProblem(session.session_id, topicId);
@@ -310,7 +320,12 @@ export default function App() {
         <TopNav currentUser={currentUser} onLogout={handleLogout} />
         <PageTransition key="mode" className="flex-1 flex items-center justify-center p-8 relative">
           {error && <div className="absolute top-4 px-4 py-2 bg-red-900/50 border border-red-700 rounded text-red-300 text-sm">{error}</div>}
-          <ModeSelect onSelect={handleSelectMode} onBack={handleBackToCharacterSelect} loading={loading} />
+          <ModeSelect
+            onSelect={handleSelectMode}
+            onBack={handleBackToCharacterSelect}
+            loading={loading}
+            topic={pendingTopic}
+          />
         </PageTransition>
       </div>
     );
@@ -358,7 +373,12 @@ export default function App() {
             {phase === "reaction" && <ReactionPanel result={result} onNext={handleNextProblem} loading={loading} />}
             {phase === "chat" && (
               <Suspense fallback={<p className="text-center text-slate-500 text-sm">Loading chat...</p>}>
-                <ChatWindow messages={chatMessages} onSend={handleSendChatMessage} loading={loading} />
+                <ChatWindow
+                  messages={chatMessages}
+                  onSend={handleSendChatMessage}
+                  loading={loading}
+                  topic={sessionTopic}
+                />
               </Suspense>
             )}
           </div>
@@ -377,6 +397,9 @@ export function AppRouter() {
       <Route path="/account"             element={<Layout><AccountPage /></Layout>} />
       <Route path="/dashboard"           element={<Layout><DashboardPage /></Layout>} />
       <Route path="/syllabus"            element={<Layout><SyllabusPage /></Layout>} />
+      <Route path="/question-banks"      element={<Layout><QuestionBanksPage /></Layout>} />
+      <Route path="/question-banks/:paperId/attempts/:attemptId" element={<Layout><PaperAttemptPage /></Layout>} />
+      <Route path="/admin/question-banks" element={<Layout><AdminQuestionBanksPage /></Layout>} />
       <Route path="/privacy"             element={<PrivacyPage />} />
       <Route path="/terms"               element={<TermsPage />} />
       <Route path="*"                    element={<NotFoundPage />} />

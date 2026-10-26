@@ -55,10 +55,9 @@ def get_problem(
             )
             problem = generate_problem_from_proposal(s["topic"], s["difficulty"], proposal)
             generation_mode = "hybrid"
-        except (ValueError, KeyError, TypeError, json.JSONDecodeError) as e:
-            raise HTTPException(status_code=502, detail=f"Invalid AI problem proposal: {e}") from e
-        except APIError as e:
-            raise HTTPException(status_code=502, detail=f"AI problem generation failed: {e}") from e
+        except (ValueError, KeyError, TypeError, json.JSONDecodeError, APIError):
+            problem = generate_problem(s["topic"], s["difficulty"])
+            generation_mode = "procedural_fallback"
     else:
         problem = generate_problem(s["topic"], s["difficulty"])
     problem["generation_mode"] = generation_mode

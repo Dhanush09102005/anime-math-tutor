@@ -61,12 +61,17 @@ Anime_school/
 │       ├── problem.py            POST /problem
 │       ├── submit.py             POST /submit and /hint
 │       ├── chat.py               POST /chat — SymPy-backed teaching mode
-│       └── analytics.py          Dashboard and syllabus progress
+│       ├── analytics.py          Dashboard and syllabus progress
+│       └── question_banks.py     Admin-managed papers, student attempts and scoring
 │
 └── anime-tutor/
     └── src/
         ├── App.jsx               Phase machine: select → mode → topic → (problem/reaction | chat)
         ├── api/client.js         Authenticated API client, including hints/history
+        ├── pages/
+        │   ├── QuestionBanksPage.jsx       Student paper list
+        │   ├── PaperAttemptPage.jsx        Paper attempt, autosave, results and answer review
+        │   └── AdminQuestionBanksPage.jsx  Paper authoring and student attempt history
         ├── components/
         │   ├── CharacterSelect.jsx   CHARACTERS array now exported — reused by
         │   │                          SessionHeader.jsx for name/title lookup
@@ -105,10 +110,10 @@ The supported, simplest way to run the complete app is Docker Compose. SQLite is
 ### Prerequisites
 
 - Windows, macOS, or Linux with Docker Desktop (or Docker Engine) and the Compose v2 plugin. On Windows, start Docker Desktop before running the commands below.
-- Ports **80**, **8000**, and **5432** available on your machine.
+- Ports **80**, **8000**, and **5433** available on your machine.
 - Internet access to download container images and call Google OAuth and Groq. Python 3 is optional; it is only used by the example command that generates random secrets.
 - A Groq API key for chat, problem generation, hints, and reactions. Create one at [console.groq.com](https://console.groq.com).
-- A Google OAuth web client for Google sign-in. Set its authorized redirect URI to exactly `http://localhost:8000/auth/oauth/google/callback`. Email/password login also exists, but the backend requires OAuth environment variables to be present at startup.
+- A Google OAuth web client for Google sign-in. Set its authorized redirect URI to exactly `http://localhost:8000/auth/oauth/google/callback`. New accounts must first be registered with email and password; Google sign-in is available for existing accounts, and a verified matching Google email is linked to an existing password account on first Google login.
 - Git, if cloning the project, and a terminal at the repository root (the directory containing `docker-compose.yml`).
 
 ### First run
@@ -135,7 +140,9 @@ The supported, simplest way to run the complete app is Docker Compose. SQLite is
    - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from your Google OAuth web client.
    - `GOOGLE_REDIRECT_URI` to `http://localhost:8000/auth/oauth/google/callback`, matching the URI registered with Google.
    - `GROQ_API_KEY` to your Groq API key.
-   - Keep `FRONTEND_URL=http://localhost` and `VITE_API_URL=http://localhost:8000` for the Docker Compose local setup.
+   - `ADMIN_EMAILS` to the comma-separated email address(es) of existing accounts allowed to publish papers and view student progress.
+   - Keep `FRONTEND_URL=http://localhost` and `VITE_API_URL=/api` for the Docker Compose local setup. Nginx proxies `/api` requests to the backend.
+   - The Compose database is exposed on host port `5433` by default. If that port is unavailable, set `POSTGRES_HOST_PORT` to another available port.
 
    `DATABASE_URL` in the example is for running the backend directly on your host. Compose supplies its own database URL to the backend container, so you do not need to edit this value when using the full Compose setup. Never commit `.env` or share its secrets.
 
@@ -146,7 +153,7 @@ The supported, simplest way to run the complete app is Docker Compose. SQLite is
    docker compose up --build -d
    ```
 
-   On the first run this downloads/builds the images, waits for PostgreSQL health, applies Alembic migrations automatically (including `0004` for resumable session state), and starts the API and nginx frontend. The `pgdata` and `avatars_data` named volumes preserve database data and uploaded avatars between container rebuilds.
+   On the first run this downloads/builds the images, waits for PostgreSQL health, applies Alembic migrations automatically (including `0005` for question papers and student attempts), and starts the API and nginx frontend. The `pgdata` and `avatars_data` named volumes preserve database data and uploaded avatars between container rebuilds.
 
 4. Confirm the services started and the API is healthy:
 
@@ -157,7 +164,17 @@ The supported, simplest way to run the complete app is Docker Compose. SQLite is
 
 5. Open the app at **http://localhost**. The API is at **http://localhost:8000** and its interactive docs are at **http://localhost:8000/docs**. Register with email/password or use Google sign-in after configuring the OAuth client.
 
-Active sessions are stored in PostgreSQL: chat turns, the current problem and its server-only answer, progress, and consecutive-wrong count survive API restarts. The active session ID is kept in the browser tab's session storage, and the app restores that session after refreshing the same tab. The resume endpoint returns the active problem prompt without its canonical answer. Closing the tab or starting a different session does not provide a session picker for resuming an older session.
+Active sessions are stored in PostgreSQL: chat turns, the current problem and its server-only answer, progress, and consecutive-wrong count survive API restarts. The active session ID is kept in the browser tab's session storage, and the app restores that session after refreshing the same tab. The resume endpoint returns the active problem prompt without its canonical answer. Open **History** and choose **Continue chat** on any past chat to restore and continue it.
+
+### Teacher-managed question papers
+
+Question Banks are manually curated papers rather than AI-generated syllabus questions. An existing account whose email is listed in `ADMIN_EMAILS` sees the **Admin** navigation item and can create papers with multiple-choice or short-answer questions (up to 100 questions per paper). Published papers are immediately available to students. In-progress answers autosave and can be resumed. Students can submit for an instant score and answer review; the admin progress table lists each student's attempts, completion state, and score. It shows accounts that have started a paper, not students who have never attempted one.
+
+Short answers are compared as text after case-folding and whitespace normalization, not as mathematically equivalent expressions. For short-answer questions, add each accepted answer variant on its own line. Multiple-choice accepted answers must match an option, ignoring capitalization.
+
+The Syllabus page remains a curriculum progress overview; **Find papers** opens the question bank filtered to that topic. To enable admin access in Docker, set `ADMIN_EMAILS` in `.env` and restart/rebuild the backend.
+
+Question-bank API endpoints are under `/question-banks`: authenticated users can list papers, get answer-key-free question content, start/resume attempts, autosave answers, and submit. Only configured admins can create papers and read `/question-banks/admin/progress`.
 
 ### Stop, restart, and troubleshoot
 
@@ -205,14 +222,14 @@ POST /chat      { session_id, message, file? }       → teaching reply
 GET  /sessions/{session_id}/resume                  → restore owned active session
 ```
 
-Quick Practice answer verification and teaching-mode equation solving use SymPy. The LLM never grades an answer. For all 16 topics, the LLM proposes bounded, topic-specific problem parameters; the backend validates them and constructs the prompt and canonical answer independently. SymPy is used where symbolic math is needed. The canonical answer remains server-side. Tests exercise two distinct proposal fixtures per topic, but actual model-generated variety and educational quality still need live-provider evaluation.
+Quick Practice answer verification and teaching-mode equation solving use SymPy. The LLM never grades an answer. For all 16 topics, the LLM may propose bounded, topic-specific problem parameters; the backend validates them and constructs the prompt and canonical answer independently. If the model is unavailable or returns an invalid proposal, Quick Practice falls back to the topic's local procedural generator and labels the question accordingly. The canonical answer remains server-side. Tests exercise two distinct proposal fixtures per topic, but actual model-generated variety and educational quality still need live-provider evaluation.
 
 ### Two modes
 
 - **Quick Practice** — the original flow. Problem, answer, instant reaction, repeat.
 - **Just Talk** — submit a question or math problem as text, image, or PDF. SymPy solves supported problem forms; the character explains the result or gives a clearly unverified general method when parsing is unsupported.
 
-Both modes share the character and account/session infrastructure. Quick Practice uses event-specific mood images; Teaching mode currently keeps the default mood.
+Both modes share the character and account/session infrastructure. Syllabus progress reflects Mentor Quick Practice, not Question Bank paper scores; **Find papers** takes students to Question Banks filtered to that topic. Quick Practice uses event-specific mood images; Teaching mode currently keeps the default mood. Just Talk accepts natural conversation as well as text, image, or PDF math inputs. Plain conversation bypasses the solver; recognized math is solved with SymPy when supported, and otherwise the character explains a general approach without claiming a verified answer.
 
 ### Topics (16 live)
 
@@ -377,6 +394,7 @@ The "Linear Algebra" topic sat directly under a "LINEAR ALGEBRA" category header
 | v2.0.0 | Chat mode revamped into teaching mode. Accepts text, image, or PDF. New `extractor.py` (vision model for images, pdfplumber for typed PDFs, PyMuPDF fallback for scanned). New `solver.py` (SymPy-backed teaching solver for equations, derivatives, integrals). `/chat` now accepts multipart form data. `ChatWindow.jsx` gains file upload. No difficulty tracking or mood changes in chat mode. `ChatResponse` simplified (streak/difficulty removed). |
 | v2.1.0 | Multi-user foundation completed: JWT authentication with httpOnly cookies, per-user session ownership, PostgreSQL persistence, session history summaries, improved auth UI, direct chat flow without topic selection, conversational intent routing, KaTeX equation rendering, and clearer loading states. Fixed the session-history 500 error caused by a missing SQLAlchemy `Integer` import. |
 | v2.2.0 | New pages: `/dashboard`, `/syllabus`, `/history/:sessionId`, `/account`, `/privacy`, `/terms`, `/404`. Profile customization (display name, avatar upload). Persistent top navbar with active-route highlighting, hidden only during active sessions. Fade/slide page transitions that actually work (key on component, not div). Polished pill-style buttons throughout. Dashboard as default post-login page. React Router 7 wired throughout. New backend: `GET /analytics`, `GET /syllabus/progress`, `PATCH /auth/profile`, `POST /auth/profile/avatar`, `GET /sessions/{id}/attempts`, `POST /auth/change-password`, `DELETE /auth/account`. `display_name` + `avatar_url` + `mode` (session) added to DB models with migrations. `delete_user` cascade fixed. Frontend containerized (nginx, multi-stage Docker build). `avatars_data` named volume in docker-compose. `VITE_API_URL` build arg. Fixed: missing `src/data/characters.js` (build crash), missing `PrivacyPage`/`TermsPage` (build crash), `TopNav` null vs undefined check, `startTopic` from SyllabusPage now actually forwards through character/mode to topic selection. |
+| v2.3.0 | Admin-managed question banks, manual multiple-choice/short-answer paper authoring, answer-key privacy, autosaved/resumable student attempts, score tracking, admin attempt progress, and a celebratory completion/review screen (migration `0005`). |
 | v3.0 work in progress | Non-forfeiting hints; correct retry UX for invalid input; four-answer-shape verification; validated LLM-proposed parameters for all 16 topics; deterministic proposal variety and answer-verification tests; session summaries; lazy-loaded chat bundle; configurable CORS. |
 
 ---
@@ -387,6 +405,7 @@ The "Linear Algebra" topic sat directly under a "LINEAR ALGEBRA" category header
 - [x] v2.0.0 — Chat mode revamped into teaching mode
 - [x] v2.1.0 — Auth, PostgreSQL, session ownership, history
 - [x] v2.2.0 — Dashboard, Syllabus, account management, React Router, persistent navbar, page transitions, profile customization, Docker frontend, all routing bugs fixed
+- [x] v2.3.0 — Admin-managed question papers, student attempt autosave/resume, scoring, progress history, and completion review
 - [x] Activate all four characters and wire their mood images
 - [x] Keep `not_serious` attempts on the same problem in the UI
 - [x] Provide hints without forfeiting or recording an attempt
@@ -406,11 +425,11 @@ The "Linear Algebra" topic sat directly under a "LINEAR ALGEBRA" category header
 
 ## Project status and deployment boundary
 
-Validated hybrid generation is wired for all 16 topics. Topic-specific bounded proposal fields are validated, and problem prompts and canonical answers are built by backend code (using SymPy for symbolic calculations). Regression tests show that two distinct valid proposal fixtures per topic produce different prompts and verifiable answers. Session chat history, active problems, and related progress now persist in PostgreSQL; an authenticated resume endpoint restores the active session and never returns the canonical answer. The 26 backend tests cover active-problem JSON round-trips for every topic. This is code-level variety coverage—not a statistical evaluation of live LLM output, educational quality, or full-syllabus/JEE coverage, which remain unfinished.
+Validated hybrid generation is wired for all 16 topics. Topic-specific bounded proposal fields are validated, and problem prompts and canonical answers are built by backend code (using SymPy for symbolic calculations). Regression tests show that two distinct valid proposal fixtures per topic produce different prompts and verifiable answers. Session chat history, active problems, and related progress persist in PostgreSQL; an authenticated resume endpoint restores the active session and never returns the canonical answer. Teacher-managed question banks support manual papers, answer-key privacy before submission, autosaved/resumable student attempts, scoring, and admin-visible attempt history. The 40 backend tests pass; frontend lint and production build pass. This is code-level variety coverage—not a statistical evaluation of live LLM output, educational quality, or full-syllabus/JEE coverage, which remain unfinished.
 
-Docker Compose is prepared for local use; `FRONTEND_URL`, `VITE_API_URL`, and CORS support deployment configuration. The project has **not** been deployed. Hosting, domain, TLS/reverse proxy, managed database, provider OAuth settings, secrets, and production smoke tests still need configuration and verification. Before public release, use only character content and assets authorized for that use. Any future speech feature should use licensed or generic voices, not replicas trained on source recordings.
+Docker Compose has been rebuilt and verified for local use, including Alembic migration `0005`, backend health, and the frontend at `http://localhost`. The project has **not** been deployed publicly. Hosting, domain, TLS/reverse proxy, managed database, production OAuth settings, secrets, and production smoke tests still need configuration and verification. Before public release, use only character content and assets authorized for that use. Any future speech feature should use licensed or generic voices, not replicas trained on source recordings.
 
-**Completion verdict:** the project is not finished. The current frontend builds and lint passes, and the focused backend tests pass; v3 features and real production deployment remain in progress.
+**Completion verdict:** the local question-bank feature is implemented and running; broader v3 work and public production deployment remain in progress.
 
 ---
 
@@ -426,6 +445,7 @@ Docker Compose is prepared for local use; `FRONTEND_URL`, `VITE_API_URL`, and CO
 | `GOOGLE_CLIENT_SECRET` | repository-root `.env` | Secret paired with the Google OAuth client ID. |
 | `GOOGLE_REDIRECT_URI` | repository-root `.env` | Must exactly match the OAuth redirect URI registered with Google; local default is `http://localhost:8000/auth/oauth/google/callback`. |
 | `GROQ_API_KEY` | repository-root `.env` | Groq API key for direct LLM access (replaces the old `HF_TOKEN`). |
+| `ADMIN_EMAILS` | repository-root `.env` | Comma-separated existing account emails allowed to publish question papers and view student attempts. |
 | `FRONTEND_URL` | repository-root `.env` | Browser frontend origin used for OAuth redirects and CORS. Local Docker default: `http://localhost`. |
 | `VITE_API_URL` | repository-root `.env` | API URL embedded in the frontend at Docker build time. Local Docker default: `http://localhost:8000`; for a public deployment, use the externally reachable HTTPS API URL. |
 | `ENV` | repository-root `.env` | Development/production setting for host-run backend auth cookies. Compose currently sets `ENV=production` in the backend container. |

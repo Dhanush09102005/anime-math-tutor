@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Mentor", end: true },
   { to: "/dashboard", label: "Dashboard" },
   { to: "/syllabus", label: "Syllabus" },
+  { to: "/question-banks", label: "Question Banks" },
   { to: "/history", label: "History" },
   { to: "/account", label: "Account" },
 ];
@@ -45,11 +46,16 @@ export default function TopNav({ currentUser, onLogout }) {
     <nav className="sticky top-0 z-30 w-full bg-violet-950 border-b border-indigo-900 shadow-sm shadow-black/20">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 px-6 py-3">
         <div className="flex items-center gap-1 flex-wrap">
-          {NAV_ITEMS.map((item) => (
+          {[...NAV_ITEMS, ...(user?.is_admin ? [{ to: "/admin/question-banks", label: "Admin" }] : [])].map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
+              onClick={() => {
+                if (item.to === "/") {
+                  sessionStorage.removeItem("animeTutorActiveSession");
+                }
+              }}
               className={({ isActive }) =>
                 `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 active:scale-95 ${
                   isActive

@@ -190,3 +190,35 @@ export async function fetchSyllabusProgress() {
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json();
 }
+
+export function fetchQuestionPapers() {
+  return request("/question-banks", undefined, "GET");
+}
+
+export function fetchQuestionPaper(paperId) {
+  return request(`/question-banks/${paperId}`, undefined, "GET");
+}
+
+export function createPaperAttempt(paperId) {
+  return request(`/question-banks/${paperId}/attempts`, undefined, "POST");
+}
+
+export function fetchPaperAttempt(attemptId) {
+  return request(`/question-banks/attempts/${attemptId}`, undefined, "GET");
+}
+
+export function savePaperAnswers(attemptId, answers) {
+  return request(`/question-banks/attempts/${attemptId}/answers`, { answers }, "PUT");
+}
+
+export function submitPaperAttempt(attemptId, answers) {
+  return request(`/question-banks/attempts/${attemptId}/submit`, { answers });
+}
+
+export function createQuestionPaper(paper) {
+  return request("/question-banks", paper);
+}
+
+export function fetchStudentPaperProgress() {
+  return request("/question-banks/admin/progress", undefined, "GET");
+}

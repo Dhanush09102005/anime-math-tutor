@@ -7,7 +7,19 @@ export default function AuthScreen({ onAuthenticated, loading, setLoading }) {
   const [mode, setMode] = useState("login"); // "login" | "register"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(() => {
+    const authError = new URLSearchParams(window.location.search).get("auth_error");
+    if (authError === "google_registration_disabled") {
+      return "Create an account with your email and password before using Google sign-in.";
+    }
+    if (authError === "google_email_unverified") {
+      return "Google sign-in requires a verified Google email address.";
+    }
+    if (authError === "google_account_already_linked") {
+      return "This email is already linked to a different sign-in method.";
+    }
+    return null;
+  });
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -38,7 +50,9 @@ export default function AuthScreen({ onAuthenticated, loading, setLoading }) {
           Anime Math Tutor
         </h1>
         <p className="mt-2 text-slate-400 text-sm">
-          {mode === "login" ? "Welcome back." : "Create an account to start."}
+          {mode === "login"
+            ? "Welcome back."
+            : "Create an account with your email and password."}
         </p>
       </div>
 
@@ -82,21 +96,25 @@ export default function AuthScreen({ onAuthenticated, loading, setLoading }) {
         </button>
       </form>
 
-      <div className="w-full flex items-center gap-3">
-        <div className="flex-1 h-px bg-indigo-700" />
-        <span className="text-slate-500 text-xs">or</span>
-        <div className="flex-1 h-px bg-indigo-700" />
-      </div>
+      {mode === "login" && (
+        <>
+          <div className="w-full flex items-center gap-3">
+            <div className="flex-1 h-px bg-indigo-700" />
+            <span className="text-slate-500 text-xs">or</span>
+            <div className="flex-1 h-px bg-indigo-700" />
+          </div>
 
-      <button
-        onClick={handleGoogleClick}
-        disabled={loading}
-        className="w-full px-4 py-2 rounded-lg border border-indigo-600 text-slate-200
-                   hover:border-indigo-400 transition-colors disabled:opacity-50
-                   disabled:cursor-not-allowed"
-      >
-        Continue with Google
-      </button>
+          <button
+            onClick={handleGoogleClick}
+            disabled={loading}
+            className="w-full px-4 py-2 rounded-lg border border-indigo-600 text-slate-200
+                       hover:border-indigo-400 transition-colors disabled:opacity-50
+                       disabled:cursor-not-allowed"
+          >
+            Log in with Google
+          </button>
+        </>
+      )}
 
       <button
         onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); }}

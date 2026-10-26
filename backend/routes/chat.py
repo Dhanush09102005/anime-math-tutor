@@ -128,6 +128,13 @@ async def chat(
 
     # ── 4. Get character explanation ──────────────────────────────────────────
     system_prompt = build_chat_system_prompt(persona)
+    if s["topic"] != "general":
+        topic_label = s["topic"].replace("_", " ")
+        system_prompt += (
+            f"\n\nThis conversation started from syllabus practice for "
+            f"{topic_label}. Use that as the default teaching focus, but "
+            "follow the student's lead if they ask about something else."
+        )
 
     try:
         reply = get_teaching_reply(system_prompt, history)

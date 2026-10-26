@@ -9,7 +9,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tutor"]
       interval: 5s
@@ -31,6 +31,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
       FRONTEND_URL: ${FRONTEND_URL}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       ENV: production
     volumes:
       # Persist uploaded avatars across container rebuilds.
@@ -47,11 +48,9 @@ services:
     build:
       context: ./anime-tutor
       args:
-        # Passed as a Vite build-time env var so client.js hits the right URL.
-        # In Docker the browser talks to the host machine, so localhost:8000
-        # still works — the container name (backend:8000) would only be needed
-        # for server-to-server calls, which the frontend doesn't make.
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        # The frontend container's Nginx proxies /api to the backend service.
+        # This keeps browser API and OAuth requests same-origin.
+        VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
     depends_on:
       - backend

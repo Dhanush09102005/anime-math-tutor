@@ -15,7 +15,7 @@ const MODES = [
   },
 ];
 
-export default function ModeSelect({ onSelect, onBack, loading }) {
+export default function ModeSelect({ onSelect, onBack, loading, topic }) {
   return (
     <div className="flex flex-col items-center gap-10 w-full max-w-2xl">
 
@@ -33,7 +33,9 @@ export default function ModeSelect({ onSelect, onBack, loading }) {
           How do you want to learn?
         </h1>
         <p className="mt-2 text-slate-400 text-sm">
-          Switch anytime by starting a new session.
+          {topic
+            ? `Syllabus practice: ${topic.replaceAll("_", " ")}. Quick Practice starts questions on this topic; Just Talk starts a focused chat.`
+            : "Switch anytime by starting a new session."}
         </p>
       </div>
 

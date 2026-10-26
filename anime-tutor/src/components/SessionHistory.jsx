@@ -79,12 +79,24 @@ export default function SessionHistory({ sessions, loading, error, onBack }) {
                   <div className="mt-1 text-slate-500">
                     {accuracy}% correct · streak {session.streak}
                   </div>
-                  <button
-                    onClick={() => navigate(`/history/${session.session_id}`)}
-                    className="mt-1 text-slate-400 hover:text-slate-100 underline underline-offset-2 transition-colors"
-                  >
-                    View details
-                  </button>
+                  {session.mode === "chat" ? (
+                    <button
+                      onClick={() => {
+                        sessionStorage.setItem("animeTutorActiveSession", session.session_id);
+                        navigate("/", { state: { resumeSessionId: session.session_id } });
+                      }}
+                      className="mt-1 text-indigo-300 hover:text-white underline underline-offset-2 transition-colors"
+                    >
+                      Continue chat
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => navigate(`/history/${session.session_id}`)}
+                      className="mt-1 text-slate-400 hover:text-slate-100 underline underline-offset-2 transition-colors"
+                    >
+                      View details
+                    </button>
+                  )}
                 </div>
               </div>
             );

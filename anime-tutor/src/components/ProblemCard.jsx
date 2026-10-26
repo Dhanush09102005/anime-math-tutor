@@ -20,6 +20,11 @@ export default function ProblemCard({ problem, onSubmit, onHint, loading, hint }
             AI-proposed · SymPy-verified
           </span>
         )}
+        {problem.generation_mode === "procedural_fallback" && (
+          <span className="ml-2 text-amber-300 normal-case tracking-normal">
+            AI unavailable · local question
+          </span>
+        )}
       </div>
 
       {/* Problem text */}

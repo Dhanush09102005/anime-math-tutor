@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AnswerShape(str, Enum):
@@ -37,6 +37,7 @@ class UserResponse(BaseModel):
     display_name: Optional[str] = None
     avatar_url: Optional[str] = None
     has_password: bool = False
+    is_admin: bool = False
 
 
 class UpdateProfileRequest(BaseModel):
@@ -63,6 +64,7 @@ class SessionHistoryItem(BaseModel):
     session_id: str
     persona_id: str
     topic: str
+    mode: str
     difficulty: int
     streak: int
     attempt_count: int
@@ -114,6 +116,46 @@ class SessionResumeResponse(BaseModel):
     streak: int
     active_problem: Optional[ProblemResponse] = None
     conversation_history: list[ChatHistoryMessage] = Field(default_factory=list)
+
+
+class PaperQuestionInput(BaseModel):
+    prompt: str = Field(min_length=1, max_length=5000)
+    question_type: Literal["multiple_choice", "short_answer"]
+    options: list[str] = Field(default_factory=list, max_length=8)
+    accepted_answers: list[str] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def validate_question(self):
+        if not self.prompt.strip() or any(not option.strip() for option in self.options):
+            raise ValueError("Question text and options cannot be blank.")
+        if any(not answer.strip() for answer in self.accepted_answers):
+            raise ValueError("Accepted answers cannot be blank.")
+        if self.question_type == "multiple_choice":
+            if len(self.options) < 2:
+                raise ValueError("Multiple-choice questions need at least two options.")
+            normalized_options = {option.strip().casefold() for option in self.options}
+            if any(answer.strip().casefold() not in normalized_options for answer in self.accepted_answers):
+                raise ValueError("Each accepted answer must match one of the options.")
+        elif self.options:
+            raise ValueError("Short-answer questions cannot include multiple-choice options.")
+        return self
+
+
+class QuestionPaperCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=1000)
+    topic: str = Field(min_length=1, max_length=100)
+    questions: list[PaperQuestionInput] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_paper(self):
+        if not self.title.strip() or not self.topic.strip():
+            raise ValueError("Paper title and topic cannot be blank.")
+        return self
+
+
+class PaperAnswerRequest(BaseModel):
+    answers: list[str] = Field(max_length=100)
 
 
 class SubmitRequest(BaseModel):

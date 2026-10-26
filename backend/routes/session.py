@@ -108,6 +108,8 @@ def create_session(
     s["user_id"] = current_user.id
     if req.topic:
         s["topic"] = req.topic
+    elif req.mode == "chat":
+        s["topic"] = "general"
     state.SESSIONS[session_id] = s
 
     # Persist to DB

@@ -35,6 +35,14 @@ def get_user_by_oauth(db: Session, provider: str, oauth_id: str) -> Optional[Use
     ).first()
 
 
+def link_user_oauth(db: Session, user: User, provider: str, oauth_id: str) -> User:
+    user.oauth_provider = provider
+    user.oauth_id = oauth_id
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def create_user(
     db: Session,
     email: str,
@@ -145,6 +153,7 @@ def list_sessions_for_user(db: Session, user_id: uuid.UUID) -> list[dict]:
             "session_id": session.session_id,
             "persona_id": session.persona_id,
             "topic": session.topic,
+            "mode": session.mode,
             "difficulty": session.difficulty,
             "streak": session.streak,
             "attempt_count": attempt_count,

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from routes import auth, session, problem, submit, chat, analytics
+from routes import auth, session, problem, submit, chat, analytics, question_banks
 
 app = FastAPI(title="Anime Math Tutor API")
 
@@ -45,6 +45,7 @@ app.include_router(problem.router)
 app.include_router(submit.router)
 app.include_router(chat.router)
 app.include_router(analytics.router)
+app.include_router(question_banks.router)
 
 # NOTE: no more init_db() on startup. Schema is owned by Alembic now —
 # run `alembic upgrade head` before starting the app (docker-compose's
