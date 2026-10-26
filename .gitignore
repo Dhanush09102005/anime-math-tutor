@@ -26,9 +26,6 @@ CONTEXT.md
 .vscode/
 .idea/
 
-anime-tutor/src/assets/characters/
-anime-tutor/src/assets/kakashi/
-
 # Environment files. Keep the checked-in template, never real env files.
 .env*
 !.env.example
